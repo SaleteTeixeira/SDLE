@@ -11,10 +11,7 @@ import io.atomix.utils.serializer.Serializer;
 import io.atomix.utils.serializer.SerializerBuilder;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -132,6 +129,7 @@ public class Node implements Serializable {
         String RSAFile = args[3];
         String RSA = Util.LoadRSAKey(RSAFile);
         Node node = loadState(username, RSA, localport, fileName);
+        boolean out = false;
 
         //todo (sofia): apagar posts antigos
 
@@ -158,5 +156,26 @@ public class Node implements Serializable {
         }
 
         //todo (salete): menu
+
+        System.out.println("Bem vindo" + node.getClient().getUsername());
+
+        while(!out){
+            int op = showMenu();
+
+
+        }
+    }
+
+    private static int showMenu() {
+        Scanner scan = new Scanner(System.in);
+
+        System.out.println("Escolha uma das seguintes opções: ");
+        System.out.println("1. Publicar.");
+        System.out.println("2. Ver timeline.");
+        System.out.println("3. Subscrever vizinho.");
+        System.out.println("4. Desubscrever vizinho.");
+        System.out.println("5. Logout.");
+
+        return scan.nextInt();
     }
 }

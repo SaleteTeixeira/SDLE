@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Node {
+public class Node implements Serializable {
     private Client client;
     private List<Post> myPosts; //added by causal order
     private Integer causalID;
@@ -18,11 +18,10 @@ public class Node {
 
     private Map<String, Client> subs;
     private Map<String, List<Post>> subsPosts; //added by causal order
-    //todo (duvida): concordam???
     private Map<String, Integer> causalIdSubs;
     private Map<String, List<Post>> waitingListSubsPost;
 
-    private Node(){
+    private Node() {
         //todo (diogo): ir buscar a key e o IP
         this.client = new Client("", "key", 1111, Address.from("12345"));
         this.myPosts = new ArrayList<Post>();
@@ -88,9 +87,8 @@ public class Node {
     }
 
     public static void main(String[] args){
-        String fileName = args[0];
+        String fileName = "nodeDB";
         Node node = new Node();
-        //todo (duvida): que nomes vamos dar aos ficheiros? a key é mt grande e o username ñ é único
 
         try {
             node = loadState(fileName);
@@ -100,7 +98,7 @@ public class Node {
             System.out.println("Node's state not found.");
         }
 
-        //todo (diogo): menu
+        //todo (salete): menu
 
         try {
             writeInTextFile(node, fileName+"_TextVersion");

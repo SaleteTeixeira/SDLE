@@ -6,7 +6,7 @@ import java.io.*;
 import java.util.*;
 
 import Common.NeighborsReply;
-import Common.NeighborsRequest;
+import Common.NodeMsg;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
@@ -28,7 +28,7 @@ public class Bootstrap {
             ExecutorService es = Executors.newSingleThreadExecutor();
 
             ms.registerHandler("network", (o, m) -> {
-                NeighborsRequest msg = s.decode(m);
+                NodeMsg msg = s.decode(m);
                 clients.put(msg.getClient().getKey(), msg.getClient());
 
                 List<Client> network = neighbors(clients);
@@ -37,6 +37,13 @@ public class Bootstrap {
 
                 storeState(clients, file);
             }, es);
+
+            ms.registerHandler("update", (o,m) -> {
+                NodeMsg msg = s.decode(m);
+                clients.put(msg.getClient().getKey(), msg.getClient());
+                storeState(clients, file);
+            }, es);
+
             ms.start().get();
 
         } catch (InterruptedException | ExecutionException e) {

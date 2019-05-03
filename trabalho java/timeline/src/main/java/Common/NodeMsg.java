@@ -1,9 +1,9 @@
 package Common;
 
-public class NeighborsRequest {
+public class NodeMsg {
     private Client client;
 
-    public NeighborsRequest(Client c){
+    public NodeMsg(Client c){
         this.client = c;
     }
 
@@ -12,6 +12,6 @@ public class NeighborsRequest {
     }
 
     public String toString(){
-        return "New NeighborRequest from client " + this.client.getUsername();
+        return "New NodeMsg from client " + this.client.getUsername();
     }
 }

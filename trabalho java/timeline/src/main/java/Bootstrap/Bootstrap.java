@@ -18,8 +18,10 @@ import java.util.concurrent.Executors;
 
 public class Bootstrap {
     public static void main(String[] args){
+        String file = "bootstrapDB";
+
         try {
-            Map<String, Client> clients = loadState(args[1]);
+            Map<String, Client> clients = loadState(file);
 
             Serializer s = new SerializerBuilder().build();
             ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(args[0])).build();
@@ -33,7 +35,7 @@ public class Bootstrap {
                 NeighborsReply send = new NeighborsReply(network);
                 ms.sendAsync(o,"network", s.encode(send));
 
-                storeState(clients, args[1]);
+                storeState(clients, file);
             }, es);
             ms.start().get();
 

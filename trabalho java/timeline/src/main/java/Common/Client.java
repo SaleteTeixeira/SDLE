@@ -2,10 +2,12 @@ package Common;
 
 import io.atomix.utils.net.Address;
 
-public class Client {
+import java.io.Serializable;
+
+public class Client implements Serializable {
     private String username;
     private String key;
-    private int port; //todo (duvida): porquê separar a porta do address ??? porquê não usar o IP mesmo (InetAddress)?
+    private int port;
     private Address address;
 
     public Client(String u, String k, int p, Address a){

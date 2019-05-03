@@ -1,4 +1,4 @@
-package Client;
+package Common;
 
 import io.atomix.utils.net.Address;
 
@@ -46,7 +46,7 @@ public class Client {
     public String toString(){
         StringBuilder ss = new StringBuilder();
 
-        ss.append("----- Client -----").append("\n");
+        ss.append("----- Node -----").append("\n");
         ss.append("Username: ").append(this.username).append("\n");
         ss.append("Public key: ").append(this.key).append("\n");
         ss.append("Port: ").append(this.port).append("\n");

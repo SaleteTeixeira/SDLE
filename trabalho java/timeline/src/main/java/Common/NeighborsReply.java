@@ -1,6 +1,4 @@
-package Messages;
-
-import Client.Client;
+package Common;
 
 import java.util.List;
 

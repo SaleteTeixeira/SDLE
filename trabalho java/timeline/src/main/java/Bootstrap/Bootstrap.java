@@ -1,12 +1,12 @@
 package Bootstrap;
 
-import Client.Client;
+import Common.Client;
 
 import java.io.*;
 import java.util.*;
 
-import Messages.NeighborsReply;
-import Messages.NeighborsRequest;
+import Common.NeighborsReply;
+import Common.NeighborsRequest;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
@@ -19,22 +19,7 @@ import java.util.concurrent.Executors;
 public class Bootstrap {
     public static void main(String[] args){
         try {
-            String file = args[1];
-            Map<String, Client> clients;
-
-            try{ //todo (salete): não queres por isto numa função? ficava mais limpo o código
-                FileInputStream fileIn = new FileInputStream(file);
-                ObjectInputStream in = new ObjectInputStream(fileIn);
-                clients = (Map<String, Client>) in.readObject();
-                in.close();
-                fileIn.close();
-
-                if(clients == null){
-                    clients = new HashMap<>();
-                }
-            } catch (IOException | ClassNotFoundException e) {
-                clients = new HashMap<>();
-            }
+            Map<String, Client> clients = loadState(args[1]);
 
             Serializer s = new SerializerBuilder().build();
             ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(args[0])).build();
@@ -46,19 +31,9 @@ public class Bootstrap {
 
                 List<Client> network = neighbors(clients);
                 NeighborsReply send = new NeighborsReply(network);
-
-                try { //todo (salete): não queres por isto numa função? ficava mais limpo o código
-                    FileOutputStream fileOut = new FileOutputStream(file);
-                    ObjectOutputStream out = new ObjectOutputStream(fileOut);
-                    out.writeObject(clients);
-                    out.flush();
-                    out.close();
-                    fileOut.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
                 ms.sendAsync(o,"network", s.encode(send));
+
+                storeState(clients, args[1]);
             }, es);
             ms.start().get();
 
@@ -71,5 +46,38 @@ public class Bootstrap {
         List<Client> network = new ArrayList<>(clients.values());
         Collections.shuffle(network);
         return network.subList(0, 5);
+    }
+
+    private static Map<String, Client> loadState(String file){
+        Map<String, Client> clients;
+
+        try{
+            FileInputStream fileIn = new FileInputStream(file);
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            clients = (Map<String, Client>) in.readObject();
+            in.close();
+            fileIn.close();
+
+            if(clients == null){
+                clients = new HashMap<>();
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            clients = new HashMap<>();
+        }
+
+        return clients;
+    }
+
+    private static void storeState(Map<String, Client> clients, String file){
+        try {
+            FileOutputStream fileOut = new FileOutputStream(file);
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            out.writeObject(clients);
+            out.flush();
+            out.close();
+            fileOut.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

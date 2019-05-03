@@ -1,6 +1,4 @@
-package Messages;
-
-import Client.Client;
+package Common;
 
 public class NeighborsRequest {
     private Client client;

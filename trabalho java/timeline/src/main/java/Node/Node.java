@@ -1,5 +1,6 @@
-package Client;
+package Node;
 
+import Common.Client;
 import io.atomix.utils.net.Address;
 
 import java.io.*;
@@ -96,7 +97,7 @@ public class Node {
             //todo (diogo): atualizar ???KEY??? e o IP
             //todo (sofia): apagar posts antigos
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Client's state not found.");
+            System.out.println("Node's state not found.");
         }
 
         //todo (diogo): menu

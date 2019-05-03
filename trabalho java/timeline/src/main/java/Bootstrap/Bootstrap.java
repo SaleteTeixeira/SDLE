@@ -1,12 +1,12 @@
 package Bootstrap;
 
-import Common.Client;
+import Client.Client;
 
 import java.io.*;
 import java.util.*;
 
-import Common.NeighborsReply;
-import Common.NeighborsRequest;
+import Messages.NeighborsReply;
+import Messages.NeighborsRequest;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
@@ -22,7 +22,7 @@ public class Bootstrap {
             String file = args[1];
             Map<String, Client> clients;
 
-            try{
+            try{ //todo (salete): não queres por isto numa função? ficava mais limpo o código
                 FileInputStream fileIn = new FileInputStream(file);
                 ObjectInputStream in = new ObjectInputStream(fileIn);
                 clients = (Map<String, Client>) in.readObject();
@@ -47,10 +47,11 @@ public class Bootstrap {
                 List<Client> network = neighbors(clients);
                 NeighborsReply send = new NeighborsReply(network);
 
-                try {
+                try { //todo (salete): não queres por isto numa função? ficava mais limpo o código
                     FileOutputStream fileOut = new FileOutputStream(file);
                     ObjectOutputStream out = new ObjectOutputStream(fileOut);
                     out.writeObject(clients);
+                    out.flush();
                     out.close();
                     fileOut.close();
                 } catch (IOException e) {
@@ -64,7 +65,6 @@ public class Bootstrap {
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
-
     }
 
     private static List<Client> neighbors(Map<String, Client> clients) {

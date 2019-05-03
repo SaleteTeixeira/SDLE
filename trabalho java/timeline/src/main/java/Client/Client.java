@@ -1,11 +1,11 @@
-package Common;
+package Client;
 
 import io.atomix.utils.net.Address;
 
 public class Client {
     private String username;
     private String key;
-    private int port;
+    private int port; //todo (duvida): porquê separar a porta do address ??? porquê não usar o IP mesmo (InetAddress)?
     private Address address;
 
     public Client(String u, String k, int p, Address a){
@@ -16,25 +16,37 @@ public class Client {
     }
 
     public String getUsername() {
-        return this.username;
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getKey() {
-        return this.key;
+        return key;
     }
 
     public int getPort() {
-        return this.port;
+        return port;
     }
 
-    public Address getAddress(){
-        return this.address;
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
     }
 
     public String toString(){
         StringBuilder ss = new StringBuilder();
 
-        ss.append("----- Neighbor -----").append("\n");
+        ss.append("----- Client -----").append("\n");
         ss.append("Username: ").append(this.username).append("\n");
         ss.append("Public key: ").append(this.key).append("\n");
         ss.append("Port: ").append(this.port).append("\n");

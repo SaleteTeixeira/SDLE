@@ -3,6 +3,7 @@ package Node;
 import Common.Client;
 import Common.NeighborsReply;
 import Common.NodeMsg;
+import Common.Util;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
@@ -30,13 +31,13 @@ public class Node implements Serializable {
     private Map<String, Integer> causalIdSubs;
     private Map<String, List<Post>> waitingListSubsPost;
 
-    private Node() {
+    private Node(String username, String RSA, String host, int port) {
         //todo (diogo): ir buscar a key e o IP
-        this.client = new Client("", "key", 1111, Address.from("12345"));
+        this.client = new Client(username, RSA, port, Address.from(host, port));
         this.myPosts = new ArrayList<Post>();
         this.causalID = 1;
-        this.neighbors = new ArrayList<Client>();
-        this.subs = new HashMap<String, Client>();
+        this.neighbors = new ArrayList<>();
+        this.subs = new HashMap<>();
         this.subsPosts = new HashMap<>();
         this.causalIdSubs = new HashMap<>();
         this.waitingListSubsPost = new HashMap<>();
@@ -46,15 +47,19 @@ public class Node implements Serializable {
         return this.client;
     }
 
-    public List<Client> getNeighbors(){
+    public List<Client> getNeighbors() {
         return this.neighbors;
     }
 
-    public void setNeighbors(List<Client> neighbors){
+    public void setNeighbors(List<Client> neighbors) {
         this.neighbors = neighbors;
     }
 
-    public String toString(){
+    public void setIP(String ip) {
+        this.client.setAddress(Address.from(ip, this.client.getPort()));
+    }
+
+    public String toString() {
         StringBuilder ss = new StringBuilder();
 
         ss.append("----- Node Info -----").append("\n\n");
@@ -69,7 +74,7 @@ public class Node implements Serializable {
         ss.append(this.neighbors.toString()).append("\n\n");
 
         ss.append("----- Subs -----").append("\n\n");
-        for(String s : this.subs.keySet()){
+        for (String s : this.subs.keySet()) {
             ss.append(this.subs.get(s).toString()).append("\n");
             ss.append(this.subsPosts.get(s).toString()).append("\n\n");
             ss.append("----- Waiting Posts -----").append("\n");
@@ -87,7 +92,7 @@ public class Node implements Serializable {
         fich.close();
     }
 
-    private static void storeState(Node node, String fileName){
+    private static void storeState(Node node, String fileName) {
         try {
             FileOutputStream fos = new FileOutputStream(fileName);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
@@ -100,8 +105,11 @@ public class Node implements Serializable {
         }
     }
 
-    private static Node loadState(String fileName){
-        Node node = new Node();
+    private static Node loadState(String username, String RSA, int port, String fileName) {
+        String host = Util.getPublicIp();
+
+
+        Node node = new Node(username, RSA, host, port);
 
         try {
             FileInputStream fis = new FileInputStream(fileName);
@@ -116,12 +124,15 @@ public class Node implements Serializable {
         return node;
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         String fileName = "nodeDB";
-        Address bootstrapIP = Address.from(Integer.parseInt(args[0]));
-        Node node = loadState(fileName);
+        String username = args[0];
+        int localport = Integer.parseInt(args[1]);
+        Address bootstrapIP = Address.from(args[2]);
+        String RSAFile = args[3];
+        String RSA = Util.LoadRSAKey(RSAFile);
+        Node node = loadState(username, RSA, localport, fileName);
 
-        //todo (diogo): atualizar ???KEY??? e o IP
         //todo (sofia): apagar posts antigos
 
         Serializer s = new SerializerBuilder().build();
@@ -129,7 +140,7 @@ public class Node implements Serializable {
         ExecutorService es = Executors.newSingleThreadExecutor();
 
         try {
-            ms.registerHandler("network", (o,m)-> {
+            ms.registerHandler("network", (o, m) -> {
                 NeighborsReply nr = s.decode(m);
                 node.setNeighbors(nr.getNeighbors());
                 storeState(node, fileName);
@@ -139,7 +150,7 @@ public class Node implements Serializable {
 
             NodeMsg msg = new NodeMsg(node.getClient());
 
-            if(node.getNeighbors().size() == 0) ms.sendAsync(bootstrapIP, "network", s.encode(msg));
+            if (node.getNeighbors().size() == 0) ms.sendAsync(bootstrapIP, "network", s.encode(msg));
             else ms.sendAsync(bootstrapIP, "update", s.encode(msg));
 
         } catch (InterruptedException | ExecutionException e) {

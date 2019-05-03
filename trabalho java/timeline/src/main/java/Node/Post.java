@@ -1,8 +1,9 @@
 package Node;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class Post {
+public class Post implements Serializable  {
     private String post;
     private Integer causalID;
     private Date utc;
@@ -25,5 +26,23 @@ public class Post {
         return utc;
     }
 
-    //todo (sofia): comparar se é maior que 1 semana
+    public boolean oneWeekOld(){
+        int oneWeekSec = 604800000;
+
+        Date today = new Date();
+        Date limit = new Date(today.getTime()-oneWeekSec);
+
+        return this.utc.before(limit);
+    }
+
+    public String toString(){
+        StringBuilder ss = new StringBuilder();
+
+        ss.append("----- Post -----").append("\n");
+        ss.append("Post: ").append(this.post).append("\n");
+        ss.append("Causal ID: ").append(this.causalID).append("\n");
+        ss.append("UTC: ").append(this.utc).append("\n");
+
+        return ss.toString();
+    }
 }

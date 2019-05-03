@@ -1,13 +1,22 @@
 package Node;
 
 import Common.Client;
+import Common.NeighborsReply;
+import Common.NodeMsg;
+import io.atomix.cluster.messaging.ManagedMessagingService;
+import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
+import io.atomix.utils.serializer.Serializer;
+import io.atomix.utils.serializer.SerializerBuilder;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Node implements Serializable {
     private Client client;
@@ -34,7 +43,15 @@ public class Node implements Serializable {
     }
 
     public Client getClient() {
-        return client;
+        return this.client;
+    }
+
+    public List<Client> getNeighbors(){
+        return this.neighbors;
+    }
+
+    public void setNeighbors(List<Client> neighbors){
+        this.neighbors = neighbors;
     }
 
     public String toString(){
@@ -70,41 +87,65 @@ public class Node implements Serializable {
         fich.close();
     }
 
-    private static void storeState(Node node, String fileName) throws FileNotFoundException, IOException {
-        FileOutputStream fos = new FileOutputStream(fileName);
-        ObjectOutputStream oos = new ObjectOutputStream(fos);
-        oos.writeObject(node);
-        oos.flush();
-        oos.close();
+    private static void storeState(Node node, String fileName){
+        try {
+            FileOutputStream fos = new FileOutputStream(fileName);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(node);
+            oos.flush();
+            oos.close();
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    private static Node loadState(String fileName) throws FileNotFoundException, IOException, ClassNotFoundException {
-        FileInputStream fis = new FileInputStream(fileName);
-        ObjectInputStream ois = new ObjectInputStream(fis);
-        Node node = (Node) ois.readObject();
-        ois.close();
+    private static Node loadState(String fileName){
+        Node node = new Node();
+
+        try {
+            FileInputStream fis = new FileInputStream(fileName);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            node = (Node) ois.readObject();
+            ois.close();
+            fis.close();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Could not find previous state");
+        }
+
         return node;
     }
 
     public static void main(String[] args){
         String fileName = "nodeDB";
-        Node node = new Node();
+        Address bootstrapIP = Address.from(Integer.parseInt(args[0]));
+        Node node = loadState(fileName);
+
+        //todo (diogo): atualizar ???KEY??? e o IP
+        //todo (sofia): apagar posts antigos
+
+        Serializer s = new SerializerBuilder().build();
+        ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(args[0])).build(); //todo (diogo): mudar IP
+        ExecutorService es = Executors.newSingleThreadExecutor();
 
         try {
-            node = loadState(fileName);
-            //todo (diogo): atualizar ???KEY??? e o IP
-            //todo (sofia): apagar posts antigos
-        } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Node's state not found.");
+            ms.registerHandler("network", (o,m)-> {
+                NeighborsReply nr = s.decode(m);
+                node.setNeighbors(nr.getNeighbors());
+                storeState(node, fileName);
+            }, es);
+
+            ms.start().get();
+
+            NodeMsg msg = new NodeMsg(node.getClient());
+
+            if(node.getNeighbors().size() == 0) ms.sendAsync(bootstrapIP, "network", s.encode(msg));
+            else ms.sendAsync(bootstrapIP, "update", s.encode(msg));
+
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
         }
 
         //todo (salete): menu
-
-        try {
-            writeInTextFile(node, fileName+"_TextVersion");
-            storeState(node, fileName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }

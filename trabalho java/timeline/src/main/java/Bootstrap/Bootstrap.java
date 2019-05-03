@@ -26,6 +26,7 @@ public class Bootstrap {
             Serializer s = new SerializerBuilder().build();
             ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(args[0])).build();
             ExecutorService es = Executors.newSingleThreadExecutor();
+            ms.start().get();
 
             ms.registerHandler("network", (o, m) -> {
                 NodeMsg msg = s.decode(m);
@@ -43,8 +44,6 @@ public class Bootstrap {
                 clients.put(msg.getClient().getKey(), msg.getClient());
                 storeState(clients, file);
             }, es);
-
-            ms.start().get();
 
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();

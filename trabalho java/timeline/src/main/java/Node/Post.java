@@ -26,15 +26,6 @@ public class Post implements Serializable  {
         return utc;
     }
 
-    public boolean oneWeekOld(){
-        int oneWeekSec = 604800000;
-
-        Date today = new Date();
-        Date limit = new Date(today.getTime()-oneWeekSec);
-
-        return this.utc.before(limit);
-    }
-
     public String toString(){
         StringBuilder ss = new StringBuilder();
 
@@ -44,5 +35,14 @@ public class Post implements Serializable  {
         ss.append("UTC: ").append(this.utc).append("\n");
 
         return ss.toString();
+    }
+
+    public boolean oneWeekOld(){
+        int oneWeekSec = 604800000;
+
+        Date today = new Date();
+        Date limit = new Date(today.getTime()-oneWeekSec);
+
+        return this.utc.before(limit);
     }
 }

@@ -16,7 +16,7 @@ public class NeighborsReply {
     public String toString(){
         StringBuilder ss = new StringBuilder();
 
-        ss.append("---------- Neighbor Response ----------").append("\n");
+        ss.append("----- Neighbors Reply -----").append("\n");
         for(Client c: this.neighbors){
             ss.append(c.toString());
         }

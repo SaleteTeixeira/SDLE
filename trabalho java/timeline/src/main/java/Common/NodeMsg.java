@@ -8,10 +8,10 @@ public class NodeMsg {
     }
 
     public Client getClient() {
-        return client;
+        return this.client;
     }
 
     public String toString(){
-        return "New NodeMsg from client " + this.client.getUsername();
+        return "----- Node Msg -----\n" + this.client.toString();
     }
 }

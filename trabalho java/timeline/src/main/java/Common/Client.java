@@ -9,6 +9,12 @@ public class Client implements Serializable {
     private String key;
     private Address address;
 
+    public Client(String tempUsername, String k){
+        this.username = tempUsername;
+        this.key = k;
+        this.address = null;
+    }
+
     public Client(String u, String k, Address a){
         this.username = u;
         this.key = k;
@@ -21,6 +27,10 @@ public class Client implements Serializable {
 
     public String getKey() {
         return this.key;
+    }
+
+    public Address getAddress() {
+        return this.address;
     }
 
     public String toString(){

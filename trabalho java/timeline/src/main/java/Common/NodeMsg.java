@@ -1,5 +1,6 @@
 package Common;
 
+//todo (geral): causalID nisto???
 public class NodeMsg {
     private Client client;
 

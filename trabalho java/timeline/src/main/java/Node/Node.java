@@ -25,27 +25,24 @@ public class Node implements Serializable {
     private Integer causalID;
 
     private List<Client> neighbors;
-
-    //todo (geral): mudar este nome para publishers ??? (e tudo o que estiver relacionado)
-    private Map<String, Client> subs;
-    private Map<String, List<Post>> subsPosts; //added by causal order
-    private Map<String, Integer> causalIdSubs;
-    private Map<String, List<Post>> waitingListSubsPost;
-
-    //todo (geral): tiver de criar esta variavel (guarda aqui os que recebe -> a não ser q já esteja subscrito OU qd subscreve, apaga-se OU qd remove sub, remove as sugestões desse sub)
-    //todo (geral): não tem eliminação periodica pq atualiza sp que se liga (se fizermos isso, está sugerido noutro todo lá para baixo ahahah)
-    private Map<String, List<String>> suggestedSubsBySub;
+    
+    private Map<String, Client> publishers;
+    private Map<String, List<Post>> pubsPosts; //added by causal order
+    private Map<String, Integer> causalIdPubs;
+    private Map<String, List<Post>> waitingListPubsPost;
+    
+    private Map<String, List<String>> suggestedPubsByPub;
 
     private Node(String username, String RSA, String host, int port) {
         this.client = new Client(username, RSA, Address.from(host, port));
         this.myPosts = new ArrayList<Post>();
         this.causalID = 1;
         this.neighbors = new ArrayList<>();
-        this.subs = new HashMap<>();
-        this.subsPosts = new HashMap<>();
-        this.causalIdSubs = new HashMap<>();
-        this.waitingListSubsPost = new HashMap<>();
-        this.suggestedSubsBySub = new HashMap<>();
+        this.publishers = new HashMap<>();
+        this.pubsPosts = new HashMap<>();
+        this.causalIdPubs = new HashMap<>();
+        this.waitingListPubsPost = new HashMap<>();
+        this.suggestedPubsByPub = new HashMap<>();
     }
 
     public Client getClient() {
@@ -56,8 +53,20 @@ public class Node implements Serializable {
         return this.neighbors;
     }
 
-    public void setNeighbors(List<Client> neighbors) {
-        this.neighbors = neighbors;
+    public List<Post> getCloneMyPosts(){
+        List<Post> result = new ArrayList<>();
+
+        for(Post p: this.myPosts){
+            result.add(p.clone());
+        }
+
+        return result;
+    }
+
+    public void addNeighbors(List<Client> neighbors) {
+        for(Client c: neighbors){
+            if(!this.neighbors.contains(c)) this.neighbors.add(c);
+        }
     }
 
     public String toString() {
@@ -74,16 +83,16 @@ public class Node implements Serializable {
         ss.append("----- Neighbors -----").append("\n");
         ss.append(this.neighbors.toString()).append("\n\n");
 
-        ss.append("----- Subs -----").append("\n\n");
-        for (String s : this.subs.keySet()) {
-            ss.append(this.subs.get(s).toString()).append("\n");
+        ss.append("----- Pubs -----").append("\n\n");
+        for (String s : this.publishers.keySet()) {
+            ss.append(this.publishers.get(s).toString()).append("\n");
             ss.append("----- Posts -----").append("\n");
-            ss.append(this.subsPosts.get(s).toString()).append("\n\n");
+            ss.append(this.pubsPosts.get(s).toString()).append("\n\n");
             ss.append("----- Waiting Posts -----").append("\n");
-            ss.append("Next causal ID: ").append(this.causalIdSubs.get(s)).append("\n");
-            ss.append(this.waitingListSubsPost.get(s).toString()).append("\n\n");
-            ss.append("----- Suggested Subs -----").append("\n");
-            ss.append(this.suggestedSubsBySub.get(s).toString()).append("\n\n");
+            ss.append("Next causal ID: ").append(this.causalIdPubs.get(s)).append("\n");
+            ss.append(this.waitingListPubsPost.get(s).toString()).append("\n\n");
+            ss.append("----- Suggested Pubss -----").append("\n");
+            ss.append(this.suggestedPubsByPub.get(s).toString()).append("\n\n");
         }
 
         return ss.toString();
@@ -96,80 +105,68 @@ public class Node implements Serializable {
     }
 
     public void removeOneWeekOldPosts(){
-        Map<String, List<Post>> newSubsPosts = new HashMap<>();
+        Map<String, List<Post>> newPubsPosts = new HashMap<>();
 
-        for(Map.Entry<String, List<Post>> e : this.subsPosts.entrySet()){
+        for(Map.Entry<String, List<Post>> e : this.pubsPosts.entrySet()){
             List<Post> newPosts = e.getValue().stream()
                                               .filter(post -> !post.oneWeekOld())
                                               .collect(Collectors.toList());
 
-            newSubsPosts.put(e.getKey(), newPosts);
+            newPubsPosts.put(e.getKey(), newPosts);
         }
 
-        this.subsPosts = newSubsPosts;
-        newSubsPosts = null;
-
-        //todo (sofia/geral): limpar tb os que estão em lista de espera ???
-        //se limpar esse dps é preciso ter bastante cuidado com o causalID
-        //E ele nunca vai ver esses posts (qd recebe um post antigo enquanto online, ele vê -> teriamos de por que quando recebemos um antigo, não mostramos também)
-        //por outro lado, se não eliminar, a waitingList pode ficar com muitos posts porque nunca mais recebeu a msg que espera
-        //E para receber essa msg, o criador dessa msg tem de passar muitas pela rede (se calhar só devia passar as de 1 semana)
-
-        //RESUMO
-        //como temos:
-        //--- tem a possibilidade de ver tudo -> quando desliga, passa só a ver 1 semana
-        //ao eliminar:
-        //--- só pode ver sempre 1 semana de publicações -> há posts que nunca tem a possibilidade de ver
+        this.pubsPosts = newPubsPosts;
+        newPubsPosts = null;
     }
 
     public List<Client> listNeighbors_NotFollowing() {
         List<Client> result = new ArrayList<>();
 
         for(Client c: this.neighbors){
-            if(!this.subs.containsKey(c.getKey())) result.add(c);
+            if(!this.publishers.containsKey(c.getKey())) result.add(c);
         }
 
         return result;
     }
 
-    public List<String> listSubscribersKeys(){
-        return new ArrayList<>(this.subs.keySet());
+    public List<String> listPublishersKeys(){
+        return new ArrayList<>(this.publishers.keySet());
     }
 
-    public List<Client> listSubscribersValues(){
-        return new ArrayList<>(this.subs.values());
+    public List<Client> listPublishersValues(){
+        return new ArrayList<>(this.publishers.values());
     }
 
-    public void addSubscriber(String tempUsername, String key) {
-        this.subs.put(key, new Client(tempUsername, key));
-        this.subsPosts.put(key, new ArrayList<>());
-        this.causalIdSubs.put(key, 1);
-        this.waitingListSubsPost.put(key, new ArrayList<>());
+    public void addPublisher(String tempUsername, String key) {
+        this.publishers.put(key, new Client(tempUsername, key));
+        this.pubsPosts.put(key, new ArrayList<>());
+        this.causalIdPubs.put(key, 1);
+        this.waitingListPubsPost.put(key, new ArrayList<>());
     }
 
-    public void addSubscriber(Client client) {
+    public void addPublisher(Client client) {
         String key = client.getKey();
 
-        this.subs.put(key, client);
-        this.subsPosts.put(key, new ArrayList<>());
-        this.causalIdSubs.put(key, 1);
-        this.waitingListSubsPost.put(key, new ArrayList<>());
+        this.publishers.put(key, client);
+        this.pubsPosts.put(key, new ArrayList<>());
+        this.causalIdPubs.put(key, 1);
+        this.waitingListPubsPost.put(key, new ArrayList<>());
     }
 
-    public void updateSubscriber(Client client){
-        this.subs.put(client.getKey(), client);
+    public void updatePublisher(Client client){
+        this.publishers.put(client.getKey(), client);
     }
 
-    public void removeSubscriber(String key){
-        this.subs.remove(key);
-        this.subsPosts.remove(key);
-        this.causalIdSubs.remove(key);
-        this.waitingListSubsPost.remove(key);
-        this.suggestedSubsBySub.remove(key);
+    public void removePublisher(String key){
+        this.publishers.remove(key);
+        this.pubsPosts.remove(key);
+        this.causalIdPubs.remove(key);
+        this.waitingListPubsPost.remove(key);
+        this.suggestedPubsByPub.remove(key);
     }
 
-    public void updateSuggestedSubsBySub(String subKey, List<String> suggestedSubs) {
-        this.suggestedSubsBySub.put(subKey, suggestedSubs);
+    public void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
+        this.suggestedPubsByPub.put(pubKey, suggestedPubs);
     }
 
     private static void writeInTextFile(Node node, String fileName) {
@@ -230,10 +227,22 @@ public class Node implements Serializable {
     }
 
     //Menu option 2
-    private static void viewTimeline() {
+    private static void perfil(Node node){
+        System.out.println("Ola " + node.getClient().getUsername() + ", está a ver o seu perfil.");
+        
+        List<Post> aux = node.getCloneMyPosts();
+        Collections.reverse(aux);
+
+        for(Post p: aux){
+            System.out.println(p.toString());
+        }
     }
 
     //Menu option 3
+    private static void viewTimeline(Node node) {
+    }
+
+    //Menu option 4
     private static void subscribe(Node node, String fileName, ManagedMessagingService ms, Serializer s){
         Scanner scan = new Scanner(System.in);
         int op;
@@ -244,8 +253,6 @@ public class Node implements Serializable {
             System.out.println("2. Subscrever dando uma chave publica.");
             System.out.println("3. Sugestões das pessoas que segues.");
             System.out.println("4. Voltar para o menu principal.");
-
-            //todo (salete/geral): o que tinhas de fazer era a opção 2, a funcionalidade 1 não existia xD mas pode ficar esta tb, i guess...
 
             if (scan.hasNextInt()) {
                 op = scan.nextInt();
@@ -268,7 +275,7 @@ public class Node implements Serializable {
                         if (scan.hasNextInt()) {
                             try{
                                 int v = scan.nextInt();
-                                node.addSubscriber(aux.get(v-1));
+                                node.addPublisher(aux.get(v-1));
                                 System.out.println("Subscrição realizada com sucesso.");
                                 storeState(node, fileName);
                                 writeInTextFile(node, fileName+"_TextVersion");
@@ -295,7 +302,7 @@ public class Node implements Serializable {
                     System.out.println("Indique o username a ser associado a esse nó, temporariamente.");
                     String tempUsername = scan.nextLine();
 
-                    node.addSubscriber(tempUsername, key);
+                    node.addPublisher(tempUsername, key);
                     System.out.println("Subscrição realizada com sucesso.");
 
                     storeState(node, fileName);
@@ -304,8 +311,8 @@ public class Node implements Serializable {
                     //todo (diogo): msg a pedir publicações -> atualizar publicações em cache
                     break;
                 case 3:
-                    for(Map.Entry<String, List<String>> e : node.suggestedSubsBySub.entrySet()){
-                        System.out.println("Sugerido por "+node.subs.get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
+                    for(Map.Entry<String, List<String>> e : node.suggestedPubsByPub.entrySet()){
+                        System.out.println("Sugerido por "+node.publishers.get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
                         int j=1;
 
                         for(String str : e.getValue()){
@@ -315,13 +322,13 @@ public class Node implements Serializable {
 
                         System.out.println("");
 
-                        Address subAddress = node.subs.get(e.getKey()).getAddress();
-                        if(subAddress==null){
+                        Address pubAddress = node.publishers.get(e.getKey()).getAddress();
+                        if(pubAddress==null){
                             //todo (sofia): COMO NO TIMELINE pedir aos vizinhos (TTL + timeout) -> bootstrap
                         }
                         else{
                             SuggestionsRequest request = new SuggestionsRequest(node.getClient(), e.getKey());
-                            ms.sendAsync(subAddress, "suggestionsRequest", s.encode(request));
+                            ms.sendAsync(pubAddress, "suggestionsRequest", s.encode(request));
                             //todo (sofia): COMO NO TIMELINE timeout para dps mandar aos vizinhos (TTL e timeout again) -> bootstrap
                         }
                     }
@@ -338,14 +345,14 @@ public class Node implements Serializable {
         while (op!=4);
     }
 
-    //Menu option 4
+    //Menu option 5
     private static void unsubscribe(Node node, String fileName){
         Scanner scan = new Scanner(System.in);
 
         System.out.println("Indique o número do nodo que pretende des-subscrever.");
         int i=1;
 
-        List<Client> aux = node.listSubscribersValues();
+        List<Client> aux = node.listPublishersValues();
         for(Client c: aux){
             System.out.println(i + ". " + c.getUsername() + ": "+ c.getKey());
             i++;
@@ -355,7 +362,7 @@ public class Node implements Serializable {
             if (scan.hasNextInt()) {
                 try{
                     int v = scan.nextInt();
-                    node.removeSubscriber(aux.get(v-1).getKey());
+                    node.removePublisher(aux.get(v-1).getKey());
                     System.out.println("Des-subscrição realizada com sucesso.");
                     storeState(node, fileName);
                     writeInTextFile(node, fileName+"_TextVersion");
@@ -376,14 +383,13 @@ public class Node implements Serializable {
     private static int showMenu() {
         Scanner scan = new Scanner(System.in);
 
-        //todo (geral): podiamos ter a opção de ver a própria timeline (o seu próprio perfil, basicamente, para ver que publicou bem principalmente)
-
         System.out.println("Escolha uma das seguintes opções:");
         System.out.println("1. Publicar.");
-        System.out.println("2. Ver timeline.");
-        System.out.println("3. Subscrever.");
-        System.out.println("4. Des-subscrever.");
-        System.out.println("5. Logout.");
+        System.out.println("2. Ver perfil.");
+        System.out.println("3. Ver timeline.");
+        System.out.println("4. Subscrever.");
+        System.out.println("5. Des-subscrever.");
+        System.out.println("6. Logout.");
 
         if (scan.hasNextInt()) {
             return scan.nextInt();
@@ -422,10 +428,9 @@ public class Node implements Serializable {
             e.printStackTrace();
         }
 
-        //todo (geral): devia ser SET ou ADD (por causa do view timeline qd pede mais vizinhos) ???
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
-            node.setNeighbors(nr.getNeighbors());
+            node.addNeighbors(nr.getNeighbors());
             storeState(node, fileName);
             writeInTextFile(node, fileName+"_TextVersion");
         }, es);
@@ -434,7 +439,7 @@ public class Node implements Serializable {
             SuggestionsRequest request = s.decode(m);
 
             if(request.getTo().equals(node.getClient().getKey())) { //to me
-                SuggestionsReply reply = new SuggestionsReply(node.listSubscribersKeys(), node.getClient(), request.getFrom().getKey());
+                SuggestionsReply reply = new SuggestionsReply(node.listPublishersKeys(), node.getClient(), request.getFrom().getKey());
                 ms.sendAsync(request.getFrom().getAddress(),"suggestionsReply", s.encode(reply));
             }
             else{
@@ -449,9 +454,9 @@ public class Node implements Serializable {
             SuggestionsReply reply = s.decode(m);
 
             if(reply.getTo().equals(node.getClient().getKey())){ //to me
-                Client sub = reply.getFrom();
-                node.updateSubscriber(sub);
-                node.updateSuggestedSubsBySub(sub.getKey(), reply.getSuggestedKeys());
+                Client pub = reply.getFrom();
+                node.updatePublisher(pub);
+                node.updateSuggestedPubsByPub(pub.getKey(), reply.getSuggestedKeys());
 
                 storeState(node, fileName);
                 writeInTextFile(node, fileName+"_TextVersion");
@@ -488,24 +493,27 @@ public class Node implements Serializable {
                     post(node, fileName);
                     break;
                 case 2:
-                    viewTimeline();
-                    //todo (geral): aula 6 de Maio (overleaf detalhes)
-                    //todo (geral): aqui dentro podia ser 1. view timeline de um subs em especifico 2. ver timeline de todos os subs
+                    perfil(node);
                     break;
                 case 3:
-                    subscribe(node, fileName, ms, s);
+                    viewTimeline(node);
+                    //todo (geral): aula 6 de Maio (overleaf detalhes)
+                    //todo (geral): aqui dentro podia ser 1. view timeline de um publishers em especifico 2. ver timeline de todos os publishers
                     break;
                 case 4:
-                    unsubscribe(node, fileName);
+                    subscribe(node, fileName, ms, s);
                     break;
                 case 5:
+                    unsubscribe(node, fileName);
+                    break;
+                case 6:
                     break;
                 default:
                     System.out.println("Erro: opção inválida. Tente de novo.");
                     break;
             }
         }
-        while(op != 5);
+        while(op != 6);
 
         System.out.println("\nAté já, " + node.getClient().getUsername() + ".");
     }

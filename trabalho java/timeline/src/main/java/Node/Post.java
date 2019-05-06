@@ -14,6 +14,12 @@ public class Post implements Serializable  {
         this.utc = new Date(); //current date time
     }
 
+    private Post(String post, Integer causalID, Date utc){
+        this.post = post;
+        this.causalID = causalID;
+        this.utc = utc;
+    }
+
     public String getPost() {
         return post;
     }
@@ -44,5 +50,10 @@ public class Post implements Serializable  {
         Date limit = new Date(today.getTime()-oneWeekSec);
 
         return this.utc.before(limit);
+    }
+
+    @Override
+    public Post clone(){
+        return new Post(this.post, this.causalID, this.utc);
     }
 }

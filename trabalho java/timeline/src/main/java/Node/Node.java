@@ -14,10 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-//todo (geral): NODE + BOOTSTRAP -> o serializable é um bocado mau pq ...
-//em FSD escrevia-se no LOG e dps é que se fazia as alterações (put/get) -> o que faz sentido,
-//mas com o serializable não dá para fazer isso pq ele guarda o objeto (logo é preciso alterar e só dps guardar)
-
 //todo (geral): qd aplicarmos a thread (store com CF dava, não?), talvez tenhamos de sincronizar/lockar isto tudo :(
 public class Node implements Serializable {
     private Client client;
@@ -216,19 +212,19 @@ public class Node implements Serializable {
     private static void post(Node node, String fileName){
         Scanner scan = new Scanner(System.in);
 
-        System.out.println("Escreva, em uma linha, o que pretende publicar.");
+        System.out.println("Writte in one line what you want to post");
 
         String post = scan.nextLine();
         node.addPost(post);
 
-        System.out.println("Publicação publicada com sucesso.");
+        System.out.println("Post published with success");
         storeState(node, fileName);
         writeInTextFile(node, fileName+"_TextVersion");
     }
 
     //Menu option 2
     private static void perfil(Node node){
-        System.out.println("Ola " + node.getClient().getUsername() + ", está a ver o seu perfil.");
+        System.out.println("Ola " + node.getClient().getUsername() + ", this is your profile.");
         
         List<Post> aux = node.getCloneMyPosts();
         Collections.reverse(aux);
@@ -248,11 +244,11 @@ public class Node implements Serializable {
         int op;
 
         do{
-            System.out.println("Escolha uma das seguintes opções: ");
-            System.out.println("1. Subscrever um vizinho que ainda não segue.");
-            System.out.println("2. Subscrever dando uma chave publica.");
-            System.out.println("3. Sugestões das pessoas que segues.");
-            System.out.println("4. Voltar para o menu principal.");
+            System.out.println("Chose one of the following options: ");
+            System.out.println("1. Subscribe a non yet subscribed neighbor.");
+            System.out.println("2. Subscribe giving an RSA key.");
+            System.out.println("3. Suggestions of people you follow.");
+            System.out.println("4. Back to the main menu.");
 
             if (scan.hasNextInt()) {
                 op = scan.nextInt();
@@ -262,7 +258,7 @@ public class Node implements Serializable {
 
             switch(op){
                 case 1:
-                    System.out.println("Indique o número do vizinho que pretende subscrever.");
+                    System.out.println("Specify the number of the neighbor you want to subscribe.");
                     int i=1;
 
                     List<Client> aux = node.listNeighbors_NotFollowing();
@@ -276,43 +272,40 @@ public class Node implements Serializable {
                             try{
                                 int v = scan.nextInt();
                                 node.addPublisher(aux.get(v-1));
-                                System.out.println("Subscrição realizada com sucesso.");
+                                System.out.println("Subscription done with success.");
                                 storeState(node, fileName);
                                 writeInTextFile(node, fileName+"_TextVersion");
-
-                                //todo (diogo): msg a pedir publicações -> atualizar publicações em cache
                             }
                             catch(IndexOutOfBoundsException e){
-                                System.out.println("Erro: número escolhido inválido.");
+                                System.out.println("Error: chosen number is invalid.");
                             }
                         }
                         else {
-                            System.out.println("Erro: opção inválida.");
+                            System.out.println("Error: invalid option.");
                         }
                     }
                     else{
-                        System.out.println("Já está subscrito a todos os seus vizinhos!");
+                        System.out.println("You are already subscribed to all your neighbors.");
                     }
 
                     break;
                 case 2:
-                    System.out.println("Indique a chave RSA do nodo que pretende subscrever.");
+                    System.out.println("Specify the RSA key of the node you want to subscribe.");
                     String key = scan.nextLine();
 
-                    System.out.println("Indique o username a ser associado a esse nó, temporariamente.");
+                    System.out.println("Specify the username to partner temporarily to this node.");
                     String tempUsername = scan.nextLine();
 
                     node.addPublisher(tempUsername, key);
-                    System.out.println("Subscrição realizada com sucesso.");
+                    System.out.println("Subscription done with sucess");
 
                     storeState(node, fileName);
                     writeInTextFile(node, fileName+"_TextVersion");
 
-                    //todo (diogo): msg a pedir publicações -> atualizar publicações em cache
                     break;
                 case 3:
                     for(Map.Entry<String, List<String>> e : node.suggestedPubsByPub.entrySet()){
-                        System.out.println("Sugerido por "+node.publishers.get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
+                        System.out.println("Sugested by "+node.publishers.get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
                         int j=1;
 
                         for(String str : e.getValue()){
@@ -321,24 +314,13 @@ public class Node implements Serializable {
                         }
 
                         System.out.println("");
-
-                        Address pubAddress = node.publishers.get(e.getKey()).getAddress();
-                        if(pubAddress==null){
-                            //todo (sofia): COMO NO TIMELINE pedir aos vizinhos (TTL + timeout) -> bootstrap
-                        }
-                        else{
-                            SuggestionsRequest request = new SuggestionsRequest(node.getClient(), e.getKey());
-                            ms.sendAsync(pubAddress, "suggestionsRequest", s.encode(request));
-                            //todo (sofia): COMO NO TIMELINE timeout para dps mandar aos vizinhos (TTL e timeout again) -> bootstrap
-                        }
                     }
 
-                    System.out.println("Faça refresh para atualizar.");
                     break;
                 case 4:
                     break;
                 default:
-                    System.out.println("Error: opção inválida. Tente de novo.");
+                    System.out.println("Error: invalid option. Try again.");
                     break;
             }
         }
@@ -349,7 +331,7 @@ public class Node implements Serializable {
     private static void unsubscribe(Node node, String fileName){
         Scanner scan = new Scanner(System.in);
 
-        System.out.println("Indique o número do nodo que pretende des-subscrever.");
+        System.out.println("Specify the number of the node you want to unsubscribe.");
         int i=1;
 
         List<Client> aux = node.listPublishersValues();
@@ -363,32 +345,32 @@ public class Node implements Serializable {
                 try{
                     int v = scan.nextInt();
                     node.removePublisher(aux.get(v-1).getKey());
-                    System.out.println("Des-subscrição realizada com sucesso.");
+                    System.out.println("You are now unsubscribed.");
                     storeState(node, fileName);
                     writeInTextFile(node, fileName+"_TextVersion");
                 }
                 catch(IndexOutOfBoundsException e){
-                    System.out.println("Erro: número escolhido inválido.");
+                    System.out.println("Error: chosen number is invalid.");
                 }
             }
             else {
-                System.out.println("Erro: opção inválida.");
+                System.out.println("Error: invalid option.");
             }
         }
         else{
-            System.out.println("Não está subscrito a nenhum nodo!");
+            System.out.println("You are not subscribed to any node!");
         }
     }
 
     private static int showMenu() {
         Scanner scan = new Scanner(System.in);
 
-        System.out.println("Escolha uma das seguintes opções:");
-        System.out.println("1. Publicar.");
-        System.out.println("2. Ver perfil.");
-        System.out.println("3. Ver timeline.");
-        System.out.println("4. Subscrever.");
-        System.out.println("5. Des-subscrever.");
+        System.out.println("Choose one of the following options:");
+        System.out.println("1. Publish.");
+        System.out.println("2. View profile.");
+        System.out.println("3. View timeline.");
+        System.out.println("4. Subscribe.");
+        System.out.println("5. Unsubscribe.");
         System.out.println("6. Logout.");
 
         if (scan.hasNextInt()) {
@@ -399,7 +381,6 @@ public class Node implements Serializable {
     }
 
     public static void main(String[] args) {
-        //todo (geral): podiamos fazer -> se ao carregar o client der null, pedimos username e avisamos q não dá para mudar mais e tirava-se do args
         String username = args[0];
         int localport = Integer.parseInt(args[1]);
         Address bootstrapIP = Address.from(args[2]);
@@ -481,8 +462,7 @@ public class Node implements Serializable {
         }
 
         //Terminal interface
-        //todo (geral): está tudo em inglês menos o menu ??? xD
-        System.out.println("Bem vindo, " + node.getClient().getUsername() + ".");
+        System.out.println("Welcome, " + node.getClient().getUsername() + ".");
         int op;
 
         do{
@@ -509,15 +489,12 @@ public class Node implements Serializable {
                 case 6:
                     break;
                 default:
-                    System.out.println("Erro: opção inválida. Tente de novo.");
+                    System.out.println("Error: invalid option. Try again.");
                     break;
             }
         }
         while(op != 6);
 
-        System.out.println("\nAté já, " + node.getClient().getUsername() + ".");
+        System.out.println("\nSee you later, " + node.getClient().getUsername() + ".");
     }
 }
-
-
-/* todo (geral): dúvidas no overleaf */

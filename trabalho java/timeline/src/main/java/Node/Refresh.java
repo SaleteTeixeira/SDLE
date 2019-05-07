@@ -1,9 +1,6 @@
 package Node;
 
-import Common.Client;
-import Common.NeighborsReply;
-import Common.SuggestionsReply;
-import Common.SuggestionsRequest;
+import Common.*;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
@@ -19,12 +16,14 @@ public class Refresh implements Runnable {
     private final Node node;
     private final String host;
     private final int localport;
+    private final Address bootstrapIP;
     private final String fileName;
 
-    Refresh(Node node, String host, int localport, String fileName) {
+    Refresh(Node node, String host, int localport, Address bootstrapIP, String fileName) {
         this.node = node;
         this.host = host;
         this.localport = localport;
+        this.bootstrapIP = bootstrapIP;
         this.fileName = fileName;
     }
 
@@ -42,16 +41,16 @@ public class Refresh implements Runnable {
 
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
-            node.setNeighbors(nr.getNeighbors());
-            Node.storeState(node, fileName);
-            Node.writeInTextFile(node, fileName + "_TextVersion");
+            this.node.addNeighbors(nr.getNeighbors());
+            this.node.storeState(fileName);
+            this.node.writeInTextFile(fileName + "_TextVersion");
         }, es);
 
         ms.registerHandler("suggestionsRequest", (o, m) -> {
             SuggestionsRequest request = s.decode(m);
 
-            if (request.getTo().equals(node.getClient().getKey())) { //to me
-                SuggestionsReply reply = new SuggestionsReply(node.listSubscribersKeys(), node.getClient(), request.getFrom().getKey());
+            if (request.getTo().equals(this.node.getClient().getKey())) { //to me
+                SuggestionsReply reply = new SuggestionsReply(this.node.listPublishersKeys(), this.node.getClient(), request.getFrom().getKey());
                 ms.sendAsync(request.getFrom().getAddress(), "suggestionsReply", s.encode(reply));
             } else {
                 //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
@@ -64,13 +63,13 @@ public class Refresh implements Runnable {
         ms.registerHandler("suggestionsReply", (o, m) -> {
             SuggestionsReply reply = s.decode(m);
 
-            if (reply.getTo().equals(node.getClient().getKey())) { //to me
+            if (reply.getTo().equals(this.node.getClient().getKey())) { //to me
                 Client sub = reply.getFrom();
-                node.updateSubscriber(sub);
-                node.updateSuggestedSubsBySub(sub.getKey(), reply.getSuggestedKeys());
+                this.node.updatePublisher(sub);
+                this.node.updateSuggestedPubsByPub(sub.getKey(), reply.getSuggestedKeys());
 
-                Node.storeState(node, fileName);
-                Node.writeInTextFile(node, fileName + "_TextVersion");
+                this.node.storeState(fileName);
+                this.node.writeInTextFile(fileName + "_TextVersion");
             } else {
                 //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
                 //if -> ver se o tenho nos subscritos
@@ -78,5 +77,17 @@ public class Refresh implements Runnable {
                 //else if -> mandar para os meus vizinhos
             }
         }, es);
+
+        //Initial communication with bootstrap
+        NodeMsg msg = new NodeMsg(this.node.getClient());
+        if (this.node.getNeighbors().size() == 0) {
+            ms.sendAsync(bootstrapIP, "network", s.encode(msg));
+        } else {
+            ms.sendAsync(bootstrapIP, "update", s.encode(msg));
+
+            /*todo (geral): deviamos enviar aqui (aka antes de tudo) msg a pedir publicações novas e sugestões de subscritores OU só qd o utilizador faz viewTimeline/pede sugestões?
+            Assim já tinhamos coisas novas para mostrar nessas funcionalidades
+             */
+        }
     }
 }

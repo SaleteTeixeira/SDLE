@@ -79,7 +79,7 @@ public class Terminal implements Runnable {
     private void post(){
         Scanner scan = new Scanner(System.in);
 
-        System.out.println("Writte in one line what you want to post");
+        System.out.println("Write in one line what you want to post");
 
         String post = scan.nextLine();
         this.node.addPost(post);
@@ -91,9 +91,9 @@ public class Terminal implements Runnable {
 
     //Menu option 2
     private void profile(){
-        System.out.println("Ola " + this.node.getClient().getUsername() + ", this is your profile.");
+        System.out.println("Hello " + this.node.getClient().getUsername() + ", this is your profile.");
 
-        List<Post> aux = this.node.getCloneMyPosts();
+        List<Post> aux = this.node.getMyPosts();
         Collections.reverse(aux);
 
         for(Post p: aux){

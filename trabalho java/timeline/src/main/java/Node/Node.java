@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class Node implements Serializable {
     private Client client;
     private List<Post> myPosts; //added by causal order
-    private Integer causalID;
+    private Integer causalID; // todo porquê Integer
 
     private List<Client> neighbors;
 
@@ -27,76 +27,12 @@ public class Node implements Serializable {
     private Map<String, Integer> causalIdPubs;
     private Map<String, List<Post>> waitingListPubsPost;
 
-    public void setClient(Client client) {
-        this.client = client;
-    }
-
-    public List<Post> getMyPosts() {
-        return this.myPosts;
-    }
-
-    public void setMyPosts(List<Post> myPosts) {
-        this.myPosts = myPosts;
-    }
-
-    public Integer getCausalID() {
-        return this.causalID;
-    }
-
-    public void setCausalID(Integer causalID) {
-        this.causalID = causalID;
-    }
-
-    public void setNeighbors(List<Client> neighbors) {
-        this.neighbors = neighbors;
-    }
-
-    public Map<String, Client> getPublishers() {
-        return this.publishers;
-    }
-
-    public void setPublishers(Map<String, Client> publishers) {
-        this.publishers = publishers;
-    }
-
-    public Map<String, List<Post>> getPubsPosts() {
-        return this.pubsPosts;
-    }
-
-    public void setPubsPosts(Map<String, List<Post>> pubsPosts) {
-        this.pubsPosts = pubsPosts;
-    }
-
-    public Map<String, Integer> getCausalIdPubs() {
-        return this.causalIdPubs;
-    }
-
-    public void setCausalIdPubs(Map<String, Integer> causalIdPubs) {
-        this.causalIdPubs = causalIdPubs;
-    }
-
-    public Map<String, List<Post>> getWaitingListPubsPost() {
-        return this.waitingListPubsPost;
-    }
-
-    public void setWaitingListPubsPost(Map<String, List<Post>> waitingListPubsPost) {
-        this.waitingListPubsPost = waitingListPubsPost;
-    }
-
-    public Map<String, List<String>> getSuggestedPubsByPub() {
-        return this.suggestedPubsByPub;
-    }
-
-    public void setSuggestedPubsByPub(Map<String, List<String>> suggestedPubsByPub) {
-        this.suggestedPubsByPub = suggestedPubsByPub;
-    }
-
     private Map<String, List<String>> suggestedPubsByPub;
 
     private Node(String username, String RSA, String host, int port) {
         this.client = new Client(username, RSA, Address.from(host, port));
         this.myPosts = new ArrayList<Post>();
-        this.causalID = 1;
+        this.causalID = 1; // todo porquê 1
         this.neighbors = new ArrayList<>();
         this.publishers = new HashMap<>();
         this.pubsPosts = new HashMap<>();
@@ -105,15 +41,15 @@ public class Node implements Serializable {
         this.suggestedPubsByPub = new HashMap<>();
     }
 
-    Client getClient() {
-        return this.client;
+    synchronized Client getClient() {
+        return this.client.clone();
     }
 
-    List<Client> getNeighbors() {
-        return this.neighbors;
+    synchronized void setClient(Client client) {
+        this.client = client.clone();
     }
 
-    List<Post> getCloneMyPosts() {
+    synchronized List<Post> getMyPosts() {
         List<Post> result = new ArrayList<>();
 
         for (Post p : this.myPosts) {
@@ -123,13 +59,265 @@ public class Node implements Serializable {
         return result;
     }
 
-    void addNeighbors(List<Client> neighbors) {
+    synchronized void setMyPosts(List<Post> myPosts) {
+        List<Post> result = new ArrayList<>();
+
+        for (Post p : myPosts) {
+            result.add(p.clone());
+        }
+
+        this.myPosts = result;
+    }
+
+    synchronized Integer getCausalID() {
+        return this.causalID;
+    }
+
+    synchronized void setCausalID(Integer causalID) {
+        this.causalID = causalID;
+    }
+
+    synchronized List<Client> getNeighbors() {
+        List<Client> result = new ArrayList<>();
+
+        for (Client c : this.neighbors) {
+            result.add(c.clone());
+        }
+
+        return result;
+    }
+
+    synchronized void setNeighbors(List<Client> neighbors) {
+        List<Client> result = new ArrayList<>();
+
         for (Client c : neighbors) {
-            if (!this.neighbors.contains(c)) this.neighbors.add(c);
+            result.add(c.clone());
+        }
+
+        this.neighbors = result;
+    }
+
+    synchronized Map<String, Client> getPublishers() {
+        Map<String, Client> result = new HashMap<>();
+
+        for (Map.Entry<String, Client> entry : this.publishers.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().clone());
+        }
+
+        return result;
+    }
+
+    synchronized void setPublishers(Map<String, Client> publishers) {
+        Map<String, Client> result = new HashMap<>();
+
+        for (Map.Entry<String, Client> entry : publishers.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().clone());
+        }
+
+        this.publishers = result;
+    }
+
+    synchronized Map<String, List<Post>> getPubsPosts() {
+        Map<String, List<Post>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<Post>> entry : this.pubsPosts.entrySet()) {
+            List<Post> nestedResult = new ArrayList<>();
+            for (Post p : entry.getValue()) {
+                nestedResult.add(p.clone());
+            }
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        return result;
+    }
+
+    synchronized void setPubsPosts(Map<String, List<Post>> pubsPosts) {
+        Map<String, List<Post>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<Post>> entry : pubsPosts.entrySet()) {
+            List<Post> nestedResult = new ArrayList<>();
+            for (Post p : entry.getValue()) {
+                nestedResult.add(p.clone());
+            }
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        this.pubsPosts = result;
+    }
+
+    synchronized Map<String, Integer> getCausalIdPubs() {
+        return new HashMap<>(this.causalIdPubs);
+    }
+
+    synchronized void setCausalIdPubs(Map<String, Integer> causalIdPubs) {
+        this.causalIdPubs = new HashMap<>(causalIdPubs);
+    }
+
+    synchronized Map<String, List<Post>> getWaitingListPubsPost() {
+        Map<String, List<Post>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<Post>> entry : this.waitingListPubsPost.entrySet()) {
+            List<Post> nestedResult = new ArrayList<>();
+            for (Post p : entry.getValue()) {
+                nestedResult.add(p.clone());
+            }
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        return result;
+    }
+
+    synchronized void setWaitingListPubsPost(Map<String, List<Post>> waitingListPubsPost) {
+        Map<String, List<Post>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<Post>> entry : waitingListPubsPost.entrySet()) {
+            List<Post> nestedResult = new ArrayList<>();
+            for (Post p : entry.getValue()) {
+                nestedResult.add(p.clone());
+            }
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        this.waitingListPubsPost = result;
+    }
+
+    synchronized Map<String, List<String>> getSuggestedPubsByPub() {
+        Map<String, List<String>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : this.suggestedPubsByPub.entrySet()) {
+            List<String> nestedResult = new ArrayList<>(entry.getValue());
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        return result;
+    }
+
+    synchronized void setSuggestedPubsByPub(Map<String, List<String>> suggestedPubsByPub) {
+        Map<String, List<String>> result = new HashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : suggestedPubsByPub.entrySet()) {
+            List<String> nestedResult = new ArrayList<>(entry.getValue());
+            result.put(entry.getKey(), nestedResult);
+        }
+
+        this.suggestedPubsByPub = result;
+    }
+    
+    synchronized int neighborsNumber() {
+        return this.neighbors.size();
+    }
+
+    void addNeighbors(List<Client> neighbors) {
+        // todo acho que isto dá merda com encapsulamento, as referências não vão ser iguais
+        for (Client c : neighbors) {
+            if (!this.neighbors.contains(c)) {
+                this.neighbors.add(c);
+            }
         }
     }
 
-    public String toString() {
+    synchronized void addPost(String p) {
+        Post post = new Post(p, this.causalID);
+        this.myPosts.add(post);
+        this.causalID++;
+    }
+
+    synchronized List<Client> listNeighbors_NotFollowing() {
+        List<Client> result = new ArrayList<>();
+
+        for (Client c : this.neighbors) {
+            if (!this.publishers.containsKey(c.getKey())) result.add(c.clone());
+        }
+
+        return result;
+    }
+
+    synchronized List<String> listPublishersKeys() {
+        return new ArrayList<>(this.publishers.keySet());
+    }
+
+    synchronized List<Client> listPublishersValues() {
+        List<Client> result = new ArrayList<>();
+        for (Client c : this.publishers.values()) {
+            result.add(c.clone());
+        }
+        return result;
+    }
+
+    synchronized void addPublisher(String tempUsername, String key) {
+        this.publishers.put(key, new Client(tempUsername, key));
+        this.pubsPosts.put(key, new ArrayList<>());
+        this.causalIdPubs.put(key, 1);
+        this.waitingListPubsPost.put(key, new ArrayList<>());
+    }
+
+    synchronized void addPublisher(Client client) {
+        Client c = client.clone();
+
+        String key = c.getKey();
+
+        this.publishers.put(key, c);
+        this.pubsPosts.put(key, new ArrayList<>());
+        this.causalIdPubs.put(key, 1);
+        this.waitingListPubsPost.put(key, new ArrayList<>());
+    }
+
+    synchronized void updatePublisher(Client client) {
+        this.publishers.put(client.getKey(), client.clone());
+    }
+
+    synchronized void removePublisher(String key) {
+        this.publishers.remove(key);
+        this.pubsPosts.remove(key);
+        this.causalIdPubs.remove(key);
+        this.waitingListPubsPost.remove(key);
+        this.suggestedPubsByPub.remove(key);
+    }
+
+    synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
+        this.suggestedPubsByPub.put(pubKey, new ArrayList<>(suggestedPubs));
+    }
+
+    synchronized void writeInTextFile(String fileName) {
+        try {
+            PrintWriter fich = new PrintWriter(fileName);
+            fich.println(this.toString());
+            fich.flush();
+            fich.close();
+        } catch (IOException e) {
+            System.out.println("Error saving state in text file.");
+        }
+    }
+
+    synchronized void storeState(String fileName) {
+        try {
+            FileOutputStream fos = new FileOutputStream(fileName);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(this);
+            oos.flush();
+            oos.close();
+            fos.close();
+        } catch (IOException e) {
+            System.out.println("Error saving state.");
+        }
+    }
+
+    synchronized private void removeOneWeekOldPosts() {
+        Map<String, List<Post>> newPubsPosts = new HashMap<>();
+
+        for (Map.Entry<String, List<Post>> e : this.pubsPosts.entrySet()) {
+            List<Post> newPosts = e.getValue().stream()
+                    .filter(post -> !post.oneWeekOld())
+                    .collect(Collectors.toList());
+
+            newPubsPosts.put(e.getKey(), newPosts);
+        }
+
+        this.pubsPosts = newPubsPosts;
+        newPubsPosts = null; //todo wat
+    }
+
+    synchronized public String toString() {
         StringBuilder ss = new StringBuilder();
 
         ss.append("----- Node -----").append("\n\n");
@@ -158,102 +346,7 @@ public class Node implements Serializable {
         return ss.toString();
     }
 
-    void addPost(String p) {
-        Post post = new Post(p, this.causalID);
-        this.myPosts.add(post);
-        this.causalID++;
-    }
-
-    void removeOneWeekOldPosts() {
-        Map<String, List<Post>> newPubsPosts = new HashMap<>();
-
-        for (Map.Entry<String, List<Post>> e : this.pubsPosts.entrySet()) {
-            List<Post> newPosts = e.getValue().stream()
-                    .filter(post -> !post.oneWeekOld())
-                    .collect(Collectors.toList());
-
-            newPubsPosts.put(e.getKey(), newPosts);
-        }
-
-        this.pubsPosts = newPubsPosts;
-        newPubsPosts = null; //todo wat
-    }
-
-    List<Client> listNeighbors_NotFollowing() {
-        List<Client> result = new ArrayList<>();
-
-        for (Client c : this.neighbors) {
-            if (!this.publishers.containsKey(c.getKey())) result.add(c);
-        }
-
-        return result;
-    }
-
-    List<String> listPublishersKeys() {
-        return new ArrayList<>(this.publishers.keySet());
-    }
-
-    List<Client> listPublishersValues() {
-        return new ArrayList<>(this.publishers.values());
-    }
-
-    void addPublisher(String tempUsername, String key) {
-        this.publishers.put(key, new Client(tempUsername, key));
-        this.pubsPosts.put(key, new ArrayList<>());
-        this.causalIdPubs.put(key, 1);
-        this.waitingListPubsPost.put(key, new ArrayList<>());
-    }
-
-    void addPublisher(Client client) {
-        String key = client.getKey();
-
-        this.publishers.put(key, client);
-        this.pubsPosts.put(key, new ArrayList<>());
-        this.causalIdPubs.put(key, 1);
-        this.waitingListPubsPost.put(key, new ArrayList<>());
-    }
-
-    void updatePublisher(Client client) {
-        this.publishers.put(client.getKey(), client);
-    }
-
-    void removePublisher(String key) {
-        this.publishers.remove(key);
-        this.pubsPosts.remove(key);
-        this.causalIdPubs.remove(key);
-        this.waitingListPubsPost.remove(key);
-        this.suggestedPubsByPub.remove(key);
-    }
-
-    void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
-        this.suggestedPubsByPub.put(pubKey, suggestedPubs);
-    }
-
-    void writeInTextFile(String fileName) {
-        try {
-            PrintWriter fich = new PrintWriter(fileName);
-            fich.println(this.toString());
-            fich.flush();
-            fich.close();
-        } catch (IOException e) {
-            System.out.println("Error saving state in text file.");
-        }
-    }
-
-    void storeState(String fileName) {
-        try {
-            FileOutputStream fos = new FileOutputStream(fileName);
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(this);
-            oos.flush();
-            oos.close();
-            fos.close();
-        } catch (IOException e) {
-            System.out.println("Error saving state.");
-        }
-    }
-
-    private static Node loadState(String username, String RSA, String host, int port, String fileName) {
+    synchronized private static Node loadState(String username, String RSA, String host, int port, String fileName) {
         Node node = new Node(username, RSA, host, port);
 
         try {

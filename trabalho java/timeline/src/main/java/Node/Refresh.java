@@ -30,7 +30,7 @@ public class Refresh implements Runnable {
     @Override
     public void run() {
         Serializer s = new SerializerBuilder().build();
-        ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(host, localport)).build();
+        ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(this.host, this.localport)).build();
         ExecutorService es = Executors.newSingleThreadExecutor();
 
         try {
@@ -42,8 +42,8 @@ public class Refresh implements Runnable {
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
             this.node.addNeighbors(nr.getNeighbors());
-            this.node.storeState(fileName);
-            this.node.writeInTextFile(fileName + "_TextVersion");
+            this.node.storeState(this.fileName);
+            this.node.writeInTextFile(this.fileName + "_TextVersion");
         }, es);
 
         ms.registerHandler("suggestionsRequest", (o, m) -> {
@@ -54,6 +54,7 @@ public class Refresh implements Runnable {
                 ms.sendAsync(request.getFrom().getAddress(), "suggestionsReply", s.encode(reply));
             } else {
                 //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
+                // acho que caso se receba um pedido destes é so responder, não faz sentido propagar, confirmar sexta
                 //if -> ver se o tenho nos subscritos
                 //if -> ver se o tenho nos vizinhos
                 //else if -> mandar para os meus vizinhos
@@ -68,10 +69,11 @@ public class Refresh implements Runnable {
                 this.node.updatePublisher(sub);
                 this.node.updateSuggestedPubsByPub(sub.getKey(), reply.getSuggestedKeys());
 
-                this.node.storeState(fileName);
-                this.node.writeInTextFile(fileName + "_TextVersion");
+                this.node.storeState(this.fileName);
+                this.node.writeInTextFile(this.fileName + "_TextVersion");
             } else {
                 //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
+                // diogo: igual ao suggestionsRequest
                 //if -> ver se o tenho nos subscritos
                 //if -> ver se o tenho nos vizinhos
                 //else if -> mandar para os meus vizinhos
@@ -81,13 +83,20 @@ public class Refresh implements Runnable {
         //Initial communication with bootstrap
         NodeMsg msg = new NodeMsg(this.node.getClient());
         if (this.node.getNeighbors().size() == 0) {
-            ms.sendAsync(bootstrapIP, "network", s.encode(msg));
+            ms.sendAsync(this.bootstrapIP, "network", s.encode(msg));
         } else {
-            ms.sendAsync(bootstrapIP, "update", s.encode(msg));
+            ms.sendAsync(this.bootstrapIP, "update", s.encode(msg));
+            //todo (geral): deviamos enviar aqui (aka antes de tudo) msg a pedir publicações novas e sugestões de subscritores OU só qd o utilizador faz viewTimeline/pede sugestões?
+            // Assim já tinhamos coisas novas para mostrar nessas funcionalidades
+            // o update aqui não faz o mesmo que o network?
 
-            /*todo (geral): deviamos enviar aqui (aka antes de tudo) msg a pedir publicações novas e sugestões de subscritores OU só qd o utilizador faz viewTimeline/pede sugestões?
-            Assim já tinhamos coisas novas para mostrar nessas funcionalidades
-             */
+        }
+
+        // refresh loop
+        while (true) {
+            for (Client neighbor : this.node.getNeighbors()) {
+
+            }
         }
     }
 }

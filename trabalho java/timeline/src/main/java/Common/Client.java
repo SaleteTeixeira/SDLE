@@ -9,13 +9,13 @@ public class Client implements Serializable {
     private String key;
     private Address address;
 
-    public Client(String tempUsername, String k){
+    public Client(String tempUsername, String k) {
         this.username = tempUsername;
         this.key = k;
         this.address = null;
     }
 
-    public Client(String u, String k, Address a){
+    public Client(String u, String k, Address a) {
         this.username = u;
         this.key = k;
         this.address = a;
@@ -33,7 +33,7 @@ public class Client implements Serializable {
         return this.address;
     }
 
-    public String toString(){
+    public String toString() {
         StringBuilder ss = new StringBuilder();
 
         ss.append("----- Client -----").append("\n");
@@ -42,5 +42,11 @@ public class Client implements Serializable {
         ss.append("Address: ").append(this.address).append("\n");
 
         return ss.toString();
+    }
+
+    @SuppressWarnings("MethodDoesntCallSuperMethod")
+    @Override
+    public Client clone() {
+        return new Client(this.username, this.key, this.address);
     }
 }

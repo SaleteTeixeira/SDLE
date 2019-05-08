@@ -131,6 +131,7 @@ public class Node implements Serializable {
         return result;
     }
 
+    @SuppressWarnings("Duplicates")
     synchronized void setPubsPosts(Map<String, List<Post>> pubsPosts) {
         Map<String, List<Post>> result = new HashMap<>();
 
@@ -167,6 +168,7 @@ public class Node implements Serializable {
         return result;
     }
 
+    @SuppressWarnings("Duplicates")
     synchronized void setWaitingListPubsPost(Map<String, List<Post>> waitingListPubsPost) {
         Map<String, List<Post>> result = new HashMap<>();
 
@@ -202,17 +204,27 @@ public class Node implements Serializable {
 
         this.suggestedPubsByPub = result;
     }
-    
+
     synchronized int neighborsNumber() {
         return this.neighbors.size();
     }
 
-    void addNeighbors(List<Client> neighbors) {
-        // todo acho que isto dá merda com encapsulamento, as referências não vão ser iguais
+    synchronized void addNeighbors(List<Client> neighbors) {
         for (Client c : neighbors) {
-            if (!this.neighbors.contains(c)) {
-                this.neighbors.add(c);
+            boolean found = false;
+            for (Client localC : this.neighbors) {
+                if (localC.getKey().equals(c.getKey())) {
+                    found = true;
+                }
             }
+            if (!found) {
+                this.neighbors.add(c.clone());
+            }
+
+            // todo acho que isto dá merda com encapsulamento, as referências não vão ser iguais
+            //if (!this.neighbors.contains(c)) {
+            //    this.neighbors.add(c);
+            //}
         }
     }
 

@@ -414,6 +414,15 @@ public class Node implements Serializable {
         this.suggestedPubsByPub.put(pubKey, new ArrayList<>(suggestedPubs));
     }
 
+    synchronized void addPubPost(Post p, String k){
+        this.pubsPosts.get(k).add(p.clone());
+        this.causalIdPubs.put(k, p.getCausalID()+1);
+    }
+
+    synchronized void addPubWaitingList(Post p, String k){
+        this.waitingListPubsPost.get(k).add(p.clone());
+    }
+
     public static void main(String[] args) {
         String username = args[0];
         int localport = Integer.parseInt(args[1]);

@@ -3,7 +3,6 @@ package Node;
 import Common.*;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
-import io.atomix.utils.concurrent.Scheduled;
 import io.atomix.utils.net.Address;
 import io.atomix.utils.serializer.Serializer;
 import io.atomix.utils.serializer.SerializerBuilder;
@@ -38,11 +37,28 @@ public class Refresh implements Runnable {
         return subList;
     }
 
+    public boolean mandarVizinhos(Map<String, Boolean> neighborResponse){
+        for(Boolean b: neighborResponse.values()){
+            if(b) return true;
+        }
+        return false;
+    }
+
     @Override
     public void run() {
         Serializer s = new SerializerBuilder().build();
         ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(this.host, this.localport)).build();
         ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
+
+        Map<String, Boolean> pubsResponse = new HashMap<>();
+        for(Client c: this.node.getPublishers().values()){
+            pubsResponse.put(c.getKey(), true);
+        }
+
+        Map<String, Boolean> neighborResponse = new HashMap<>();
+        for(Client c: this.node.getNeighbors()){
+            neighborResponse.put(c.getKey(), true);
+        }
 
         try {
             ms.start().get();
@@ -107,7 +123,10 @@ public class Refresh implements Runnable {
                     Set<Post> orderedList = new TreeSet<>(new OrderedPostsByID());
                     orderedList.addAll(subList);
 
-                    PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), from.getKey());
+                    if(orderedList.size() > 0){
+                        PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), from.getKey());
+                        ms.sendAsync(from.getAddress(), "postReply", s.encode(reply));
+                    }
 
                     ms.sendAsync(this.node.getPublishers().get(to).getAddress(), "postsRequest", s.encode(request));
                 }
@@ -142,8 +161,14 @@ public class Refresh implements Runnable {
 
             //Message
             if(to.equals(this.node.getClient().getKey())){
-                //todo aceitar por ordem
-                //todo meter na BD
+                for(Post p: posts){
+                    if(p.getCausalID() == this.node.getCausalIdPubs().get(from.getKey())){
+                        this.node.addPubPost(p, from.getKey());
+                    }
+                    else this.node.addPubWaitingList(p, from.getKey());
+                }
+
+                this.node.storeState(fileName);
             }
         }, es);
 
@@ -158,16 +183,26 @@ public class Refresh implements Runnable {
 
         //Refresh posts
         es.schedule(() -> {
-            //todo (geral): msg a pedir publicações novas de X em X tempo
-            //- pede nova informação aos subscritores apartir de um certo causalID
-            //- se não conseguir resposta ao fim de X tempo (timeout), pede aos vizinhos indicando o TTL da msg (adiciona à BD essa nova info)
-            //- ao receber a msg do vizinho tenta atualizar o IP do subscritor através do id da msg mais recente (aka causalID -> tem de vir com a info do client)
-            //- se os vizinhos não responderem ao fim de X tempo (timeout), vai ao bootstrap pedir mais vizinhos (manda a sua chave e ip again) (adiciona à BD essa nova info)
             int ttl = 5;
 
             for(Client p : this.node.listPublishersValues()){
-                PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(),ttl);
-                ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
+                if(pubsResponse.get(p.getKey())){
+                    PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(),ttl);
+                    ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
+                    pubsResponse.put(p.getKey(), false);
+                }
+                else if(mandarVizinhos(neighborResponse)){
+                        PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(),ttl);
+                        for(Client c: this.node.getNeighbors()){
+                            ms.sendAsync(c.getAddress(), "postsRequest", s.encode(request));
+                            neighborResponse.put(c.getKey(), false);
+                        }
+                }
+                else{
+                    NodeMsg msgB = new NodeMsg(this.node.getClient(), this.node.getNodeMsgID());
+                    this.node.setNodeMsgID(this.node.getNodeMsgID() + 1);
+                    ms.sendAsync(this.bootstrapIP, "network", s.encode(msgB));
+                }
             }
 
             es.schedule(this, 5, TimeUnit.SECONDS);

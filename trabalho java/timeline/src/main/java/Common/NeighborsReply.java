@@ -2,7 +2,6 @@ package Common;
 
 import java.util.List;
 
-//todo (geral): causalID nisto???
 public class NeighborsReply {
     private List<Client> neighbors;
 

@@ -24,12 +24,24 @@ public class Client implements Serializable {
         return this.username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public String getKey() {
         return this.key;
     }
 
+    public void setKey(String key) {
+        this.key = key;
+    }
+
     public Address getAddress() {
         return this.address;
+    }
+
+    public void setAddress(Address address){
+        this.address = address;
     }
 
     public String toString() {

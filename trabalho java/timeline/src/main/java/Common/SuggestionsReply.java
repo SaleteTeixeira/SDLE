@@ -2,7 +2,6 @@ package Common;
 
 import java.util.List;
 
-//todo (geral): causalID nisto???
 public class SuggestionsReply {
     private String publisherKey;
     private List<String> suggestedKeys;

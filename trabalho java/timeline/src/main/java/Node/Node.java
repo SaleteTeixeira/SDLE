@@ -2,13 +2,17 @@ package Node;
 
 import Common.*;
 import io.atomix.utils.net.Address;
+
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 //todo (geral): melhorar controlo da concorrencia (passar synchronized para locks)
 public class Node implements Serializable {
-    /**Class Attributes**/
+    /**
+     * Class Attributes
+     **/
+    private int nodeMsgID;
 
     private Client client;
     private List<Post> myPosts; //added by causal order
@@ -23,9 +27,12 @@ public class Node implements Serializable {
 
     private Map<String, List<String>> suggestedPubsByPub;
 
-    /**Constructors**/
+    /**
+     * Constructors
+     **/
 
     private Node(String username, String RSA, String host, int port) {
+        this.nodeMsgID = 1;
         this.client = new Client(username, RSA, Address.from(host, port));
         this.myPosts = new ArrayList<Post>();
         this.causalID = 1;
@@ -37,7 +44,17 @@ public class Node implements Serializable {
         this.suggestedPubsByPub = new HashMap<>();
     }
 
-    /**Gets and Sets**/
+    /**
+     * Gets and Sets
+     **/
+
+    synchronized int getNodeMsgID() {
+        return this.nodeMsgID;
+    }
+
+    synchronized void setNodeMsgID(int nodeMsgID) {
+        this.nodeMsgID = nodeMsgID;
+    }
 
     synchronized Client getClient() {
         return this.client.clone();
@@ -203,7 +220,9 @@ public class Node implements Serializable {
         this.suggestedPubsByPub = result;
     }
 
-    /**toString**/
+    /**
+     * toString
+     **/
 
     synchronized public String toString() {
         StringBuilder ss = new StringBuilder();
@@ -234,7 +253,9 @@ public class Node implements Serializable {
         return ss.toString();
     }
 
-    /**Methods related to stored state**/
+    /**
+     * Methods related to stored state
+     **/
 
     synchronized void writeInTextFile(String fileName) {
         try {
@@ -276,7 +297,9 @@ public class Node implements Serializable {
         return node;
     }
 
-    /**Methods**/
+    /**
+     * Methods
+     **/
 
     synchronized void addPost(String p) {
         Post post = new Post(p, this.causalID);
@@ -296,11 +319,7 @@ public class Node implements Serializable {
         }
 
         this.pubsPosts = newPubsPosts;
-        newPubsPosts = null; //todo wat -> ahahah é para o garbage collector do java eliminar mais rápido essa variável
-    }
-
-    synchronized int neighborsNumber() {
-        return this.neighbors.size();
+        newPubsPosts = null;
     }
 
     synchronized void addNeighbors(List<Client> neighbors) {
@@ -316,11 +335,15 @@ public class Node implements Serializable {
             if (!found) {
                 this.neighbors.add(c.clone());
             }
+        }
+    }
 
-            // todo (geral): acho que isto dá merda com encapsulamento, as referências não vão ser iguais
-            //if (!this.neighbors.contains(c)) {
-            //    this.neighbors.add(c);
-            //}
+    synchronized void updateNeighborClientInfo(Client client) {
+        for(Client c : this.neighbors){
+            if(c.getKey().equals(client.getKey())){
+                c.setUsername(client.getUsername());
+                c.setAddress(client.getAddress());
+            }
         }
     }
 
@@ -377,10 +400,10 @@ public class Node implements Serializable {
         this.suggestedPubsByPub.remove(key);
     }
 
-    synchronized List<Post> getPublisherPosts(String key){
+    synchronized List<Post> getPublisherPosts(String key) {
         List<Post> aux = new ArrayList<Post>();
 
-        for(Post p : this.pubsPosts.get(key)){
+        for (Post p : this.pubsPosts.get(key)) {
             aux.add(p.clone());
         }
 

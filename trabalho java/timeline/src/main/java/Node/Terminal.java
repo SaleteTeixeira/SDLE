@@ -2,10 +2,7 @@ package Node;
 
 import Common.Client;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 public class Terminal implements Runnable {
 
@@ -34,8 +31,6 @@ public class Terminal implements Runnable {
                     break;
                 case 3:
                     this.viewTimeline();
-                    //todo (geral): aula 6 de Maio (overleaf detalhes)
-                    //todo (geral): aqui dentro podia ser 1. view timeline de um publishers em especifico 2. ver timeline de todos os publishers
                     break;
                 case 4:
                     this.subscribe();
@@ -73,25 +68,22 @@ public class Terminal implements Runnable {
         }
     }
 
-    // -------- INTERFACE --------
-
     //Menu option 1
     private void post(){
         Scanner scan = new Scanner(System.in);
-
-        System.out.println("Write in one line what you want to post");
-
+        System.out.println("Write in one line what you want to post.");
         String post = scan.nextLine();
-        this.node.addPost(post);
 
-        System.out.println("Post published with success");
+        this.node.addPost(post);
+        System.out.println("Post published with success.");
+
         this.node.storeState(this.fileName);
         this.node.writeInTextFile(this.fileName+"_TextVersion");
     }
 
     //Menu option 2
     private void profile(){
-        System.out.println("Hello " + this.node.getClient().getUsername() + ", this is your profile.");
+        System.out.println("Hello, " + this.node.getClient().getUsername() + "! These are your posts.");
 
         List<Post> aux = this.node.getMyPosts();
         Collections.reverse(aux);
@@ -103,15 +95,89 @@ public class Terminal implements Runnable {
 
     //Menu option 3
     private void viewTimeline() {
+        Scanner scan = new Scanner(System.in);
+        int op;
+
+        do{
+            System.out.println("Choose one of the following options: ");
+            System.out.println("1. View global timeline.");
+            System.out.println("2. View timeline of a specific publisher.");
+            System.out.println("3. Back to the main menu.");
+
+            if (scan.hasNextInt()) {
+                op = scan.nextInt();
+            } else {
+                op = -1;
+            }
+
+            switch(op){
+                case 1:
+                    Map<String, List<Post>> pubsPosts = this.node.getPubsPosts();
+                    Set<Post> chronologicalPosts = new TreeSet<Post>(new ChronologicalPosts());
+
+                    for(List<Post> lp : pubsPosts.values()){
+                        for(Post p : lp){
+                            chronologicalPosts.add(p);
+                        }
+                    }
+
+                    for(Post p : chronologicalPosts){
+                        System.out.println(p.toString());
+                    }
+
+                    break;
+                case 2:
+                    System.out.println("Specify the number of the publisher.");
+                    int i=1;
+
+                    List<Client> pubs = this.node.listPublishersValues();
+                    for(Client c : pubs){
+                        System.out.println(i + ". " + c.getUsername() + ": " + c.getKey());
+                        i++;
+                    }
+
+                    if(i!=1){
+                        if (scan.hasNextInt()) {
+                            try{
+                                int v = scan.nextInt();
+                                String selectedPubKey = pubs.get(v-1).getKey();
+                                List<Post> pubPosts = this.node.getPublisherPosts(selectedPubKey);
+                                Collections.reverse(pubPosts);
+
+                                for(Post p : pubPosts){
+                                    System.out.println(p.toString());
+                                }
+                            }
+                            catch(IndexOutOfBoundsException e){
+                                System.out.println("Error: chosen number is invalid.");
+                            }
+                        }
+                        else {
+                            System.out.println("Error: invalid option.");
+                        }
+                    }
+                    else{
+                        System.out.println("You are not subscribed to any node.");
+                    }
+
+                    break;
+                case 3:
+                    break;
+                default:
+                    System.out.println("Error: invalid option. Try again.");
+                    break;
+            }
+        }
+        while (op!=3);
     }
 
     //Menu option 4
     private void subscribe(){
         Scanner scan = new Scanner(System.in);
-        int op;
+        int op, i;
 
         do{
-            System.out.println("Chose one of the following options: ");
+            System.out.println("Choose one of the following options: ");
             System.out.println("1. Subscribe a non yet subscribed neighbor.");
             System.out.println("2. Subscribe giving an RSA key.");
             System.out.println("3. Suggestions of people you follow.");
@@ -126,7 +192,7 @@ public class Terminal implements Runnable {
             switch(op){
                 case 1:
                     System.out.println("Specify the number of the neighbor you want to subscribe.");
-                    int i=1;
+                    i=1;
 
                     List<Client> aux = this.node.listNeighbors_NotFollowing();
                     for(Client c: aux){
@@ -160,11 +226,11 @@ public class Terminal implements Runnable {
                     System.out.println("Specify the RSA key of the node you want to subscribe.");
                     String key = scan.nextLine();
 
-                    System.out.println("Specify the username to partner temporarily to this node.");
+                    System.out.println("Specify the username to associate temporarily to this node.");
                     String tempUsername = scan.nextLine();
 
                     this.node.addPublisher(tempUsername, key);
-                    System.out.println("Subscription done with sucess");
+                    System.out.println("Subscription done with sucess.");
 
                     this.node.storeState(this.fileName);
                     this.node.writeInTextFile(this.fileName +"_TextVersion");
@@ -172,15 +238,17 @@ public class Terminal implements Runnable {
                     break;
                 case 3:
                     for(Map.Entry<String, List<String>> e : this.node.getSuggestedPubsByPub().entrySet()){
-                        System.out.println("Sugested by "+ this.node.getPublishers().get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
-                        int j=1;
+                        if(e.getValue().size()!=0){
+                            System.out.println("Sugested by "+ this.node.getPublishers().get(e.getKey()).getUsername()+": "+e.getKey()+"\n");
+                            i=1;
 
-                        for(String str : e.getValue()){
-                            System.out.println(j+". "+str);
-                            j++;
+                            for(String str : e.getValue()){
+                                System.out.println(i+". "+str);
+                                i++;
+                            }
+
+                            System.out.println();
                         }
-
-                        System.out.println();
                     }
 
                     break;
@@ -212,7 +280,7 @@ public class Terminal implements Runnable {
                 try{
                     int v = scan.nextInt();
                     this.node.removePublisher(aux.get(v-1).getKey());
-                    System.out.println("You are now unsubscribed.");
+                    System.out.println("Unsubscribed successfully.");
                     this.node.storeState(this.fileName);
                     this.node.writeInTextFile(this.fileName +"_TextVersion");
                 }
@@ -225,7 +293,7 @@ public class Terminal implements Runnable {
             }
         }
         else{
-            System.out.println("You are not subscribed to any node!");
+            System.out.println("You are not subscribed to any node.");
         }
     }
 }

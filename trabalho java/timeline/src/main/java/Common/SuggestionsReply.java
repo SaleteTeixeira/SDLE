@@ -4,34 +4,26 @@ import java.util.List;
 
 //todo (geral): causalID nisto???
 public class SuggestionsReply {
+    private String publisherKey;
     private List<String> suggestedKeys;
-    private Client from; //who replies
-    private String to;  //who requested
 
-    public SuggestionsReply(List<String> suggestedKeys, Client from, String to){
+    public SuggestionsReply(String publisherKey, List<String> suggestedKeys){
+        this.publisherKey = publisherKey;
         this.suggestedKeys = suggestedKeys;
-        this.from = from;
-        this.to = to;
+    }
+
+    public String getPublisherKey() {
+        return this.publisherKey;
     }
 
     public List<String> getSuggestedKeys() {
         return this.suggestedKeys;
     }
 
-    public Client getFrom() {
-        return this.from;
-    }
-
-    public String getTo() {
-        return this.to;
-    }
-
     public String toString(){
         return "----- Suggestions Reply -----\n" +
-                "To: "+this.to+"\n"+
-                "From: \n"+
-                this.from.toString()+
-                "Suggested Keys:\n"+
-                this.suggestedKeys.toString();
+                "Suggested by: "+this.publisherKey+"\n"+
+                "Suggested publishers keys:\n"+
+                    this.suggestedKeys.toString();
     }
 }

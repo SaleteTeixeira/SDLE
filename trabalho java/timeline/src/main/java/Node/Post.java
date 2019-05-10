@@ -21,15 +21,15 @@ public class Post implements Serializable  {
     }
 
     public String getPost() {
-        return post;
+        return this.post;
     }
 
     public Integer getCausalID() {
-        return causalID;
+        return this.causalID;
     }
 
     public Date getUtc() {
-        return utc;
+        return this.utc;
     }
 
     public String toString(){
@@ -43,6 +43,11 @@ public class Post implements Serializable  {
         return ss.toString();
     }
 
+    @Override
+    public Post clone(){
+        return new Post(this.post, this.causalID, this.utc);
+    }
+
     public boolean oneWeekOld(){
         int oneWeekSec = 604800000;
 
@@ -50,10 +55,5 @@ public class Post implements Serializable  {
         Date limit = new Date(today.getTime()-oneWeekSec);
 
         return this.utc.before(limit);
-    }
-
-    @Override
-    public Post clone(){
-        return new Post(this.post, this.causalID, this.utc);
     }
 }

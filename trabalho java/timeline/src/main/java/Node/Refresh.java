@@ -47,38 +47,24 @@ public class Refresh implements Runnable {
         }, es);
 
         ms.registerHandler("suggestionsRequest", (o, m) -> {
-            SuggestionsRequest request = s.decode(m);
-
-            if (request.getTo().equals(this.node.getClient().getKey())) { //to me
-                SuggestionsReply reply = new SuggestionsReply(this.node.listPublishersKeys(), this.node.getClient(), request.getFrom().getKey());
-                ms.sendAsync(request.getFrom().getAddress(), "suggestionsReply", s.encode(reply));
-            } else {
-                //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
-                // acho que caso se receba um pedido destes é so responder, não faz sentido propagar, confirmar sexta
-                //if -> ver se o tenho nos subscritos
-                //if -> ver se o tenho nos vizinhos
-                //else if -> mandar para os meus vizinhos
-            }
+            SuggestionsReply reply = new SuggestionsReply(this.node.getClient().getKey(), this.node.listPublishersKeys());
+            ms.sendAsync(o, "suggestionsReply", s.encode(reply));
         }, es);
 
         ms.registerHandler("suggestionsReply", (o, m) -> {
             SuggestionsReply reply = s.decode(m);
-
-            if (reply.getTo().equals(this.node.getClient().getKey())) { //to me
-                Client sub = reply.getFrom();
-                this.node.updatePublisher(sub);
-                this.node.updateSuggestedPubsByPub(sub.getKey(), reply.getSuggestedKeys());
-
-                this.node.storeState(this.fileName);
-                this.node.writeInTextFile(this.fileName + "_TextVersion");
-            } else {
-                //todo (sofia): COMO NO TIMELINE questões do timeout / ttl
-                // diogo: igual ao suggestionsRequest
-                //if -> ver se o tenho nos subscritos
-                //if -> ver se o tenho nos vizinhos
-                //else if -> mandar para os meus vizinhos
-            }
+            this.node.updateSuggestedPubsByPub(reply.getPublisherKey(), reply.getSuggestedKeys());
+            this.node.storeState(this.fileName);
+            this.node.writeInTextFile(this.fileName + "_TextVersion");
         }, es);
+
+        //todo: msg postRequest
+        // quem faz o request: dar o causalID a partir do qual queremos posts
+
+        //todo: msg postReply
+        // quem faz o reply: mandar posts do causalID pedido até ao atual
+        // quem faz o reply: manda o seu client para o node que pediu atualizar essa info
+        // quem recebe o reply: atualizar a BD
 
         //Initial communication with bootstrap
         NodeMsg msg = new NodeMsg(this.node.getClient());
@@ -86,14 +72,19 @@ public class Refresh implements Runnable {
             ms.sendAsync(this.bootstrapIP, "network", s.encode(msg));
         } else {
             ms.sendAsync(this.bootstrapIP, "update", s.encode(msg));
-            //todo (geral): deviamos enviar aqui (aka antes de tudo) msg a pedir publicações novas e sugestões de subscritores OU só qd o utilizador faz viewTimeline/pede sugestões?
-            // Assim já tinhamos coisas novas para mostrar nessas funcionalidades
-            // o update aqui não faz o mesmo que o network?
-
+            //todo (duvida diogo): o update aqui não faz o mesmo que o network? -> resposta: não, só atualiza o IP, não recebe resposta com vizinhos
         }
 
-        // refresh loop
+        //Refresh loop
         while (true) {
+            //todo (geral): msg a pedir publicações novas de X em X tempo
+            //- pede nova informação aos subscritores
+            //- se não conseguir resposta ao fim de X tempo (timeout), pede aos vizinhos indicando o TTL da msg (adiciona à BD essa nova info)
+            //- ao receber a msg do vizinho tenta atualizar o IP do subscritor através do id da msg mais recente (aka causalID -> tem de vir com a info do client)
+            //- se os vizinhos não responderem ao fim de X tempo (timeout), vai ao bootstrap pedir mais vizinhos (manda a sua chave e ip again) (adiciona à BD essa nova info)
+
+            //todo (geral): msg a pedir sugestões de subscritores de X em X tempo
+
             for (Client neighbor : this.node.getNeighbors()) {
 
             }

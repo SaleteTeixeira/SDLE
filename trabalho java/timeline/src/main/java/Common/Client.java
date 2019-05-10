@@ -1,7 +1,6 @@
 package Common;
 
 import io.atomix.utils.net.Address;
-
 import java.io.Serializable;
 
 public class Client implements Serializable {

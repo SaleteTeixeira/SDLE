@@ -16,6 +16,7 @@ import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 
 public class Util {
 
@@ -23,11 +24,13 @@ public class Util {
         return Serializer.builder()
                 .withTypes(NodeMsg.class)
                 .withTypes(NeighborsReply.class)
+                .withTypes(ArrayList.class)
                 .withTypes(SuggestionsReply.class)
                 .withTypes(PostsReply.class)
                 .withTypes(PostsRequest.class)
                 .withTypes(Post.class)
                 .withTypes(Client.class)
+                .withTypes(Common.Address.class)
                 .withTypes(Address.class)
                 .withTypes(Inet4Address.class)
                 .withTypes(Address.Type.class)

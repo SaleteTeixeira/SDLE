@@ -29,12 +29,8 @@ public class Bootstrap {
             ms.start().get();
 
             ms.registerHandler("network", (o, m) -> {
-                System.out.println(Arrays.toString(m));
-                System.out.println(o);
                 NodeMsg msg = s.decode(m);
-
-                System.out.println("Received: ");
-                System.out.println(msg.toString());
+                System.out.println("\nReceived a network request from "+msg.getClient().getKey()+".");
 
                 int id = msg.getId();
                 if (!ids.containsKey(msg.getClient().getKey())) {
@@ -42,25 +38,26 @@ public class Bootstrap {
                     ids.put(msg.getClient().getKey(), 0);
                 }
                 if (id > ids.get(msg.getClient().getKey())) {
-                    System.out.println("Updating client information.");
+                    System.out.println("Updating client "+msg.getClient().getKey()+" information.");
                     clients.put(msg.getClient().getKey(), msg.getClient());
 
-                    System.out.println("Sending him his neighbors.");
                     List<Client> network = neighbors(clients);
+                    System.out.println("Sending him his neighbors.");
                     NeighborsReply send = new NeighborsReply(network);
                     ms.sendAsync(o, "network", s.encode(send));
 
                     ids.put(msg.getClient().getKey(), id);
-
-                    storeState_clients(clients, file_clients);
-                    storeState_ids(ids, file_ids);
-                    writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
                 }
+
+                storeState_clients(clients, file_clients);
+                storeState_ids(ids, file_ids);
+                writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
             }, es);
 
             ms.registerHandler("update", (o, m) -> {
                 NodeMsg msg = s.decode(m);
                 int id = msg.getId();
+                System.out.println("\nReceived a update request from "+msg.getClient().getKey()+".");
 
                 if (!ids.containsKey(msg.getClient().getKey())) {
                     System.out.println("New client!");
@@ -68,17 +65,15 @@ public class Bootstrap {
                 }
 
                 if (id > ids.get(msg.getClient().getKey())) {
-                    System.out.println("Updating client information.");
+                    System.out.println("Updating client "+msg.getClient().getKey()+" information.");
                     clients.put(msg.getClient().getKey(), msg.getClient());
                     ids.put(msg.getClient().getKey(), id);
-
-                    storeState_clients(clients, file_clients);
-                    storeState_ids(ids, file_ids);
-                    writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
                 }
+
+                storeState_clients(clients, file_clients);
+                storeState_ids(ids, file_ids);
+                writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
             }, es);
-
-
 
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
@@ -88,7 +83,12 @@ public class Bootstrap {
     private static List<Client> neighbors(Map<String, Client> clients) {
         List<Client> network = new ArrayList<>(clients.values());
         Collections.shuffle(network);
-        return network.subList(0, 5);
+        if(network.size()<=5){
+            return new ArrayList<>(network.subList(0, network.size()));
+        }
+        else{
+            return new ArrayList<>(network.subList(0, 5));
+        }
     }
 
     private static Map<String, Client> loadState_clients(String file) {

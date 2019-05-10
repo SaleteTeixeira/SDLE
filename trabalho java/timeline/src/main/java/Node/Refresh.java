@@ -46,15 +46,17 @@ public class Refresh implements Runnable {
 
     @Override
     public void run() {
-        Serializer s = new SerializerBuilder().build();
+        Serializer s = Util.buildSerializer();
         ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(this.host, this.localport)).build();
         ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 
+        //todo e se estas variaveis mudarem no node ????
         Map<String, Boolean> pubsResponse = new HashMap<>();
         for(Client c: this.node.getPublishers().values()){
             pubsResponse.put(c.getKey(), true);
         }
 
+        //todo e se estas variaveis mudarem no node ????
         Map<String, Boolean> neighborResponse = new HashMap<>();
         for(Client c: this.node.getNeighbors()){
             neighborResponse.put(c.getKey(), true);
@@ -69,6 +71,8 @@ public class Refresh implements Runnable {
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
             this.node.addNeighbors(nr.getNeighbors());
+
+            System.out.println("I received new neighbors!\n"+this.node.getNeighbors());
             this.node.storeState(this.fileName);
             this.node.writeInTextFile(this.fileName + "_TextVersion");
         }, es);
@@ -92,6 +96,7 @@ public class Refresh implements Runnable {
             String to = request.getTo();
             int ttl = request.getTTL();
 
+            //todo pensar se se pode fazer estes updates do client
             //Update neighbor client info
             boolean found = false;
             List<Client> neighbors = this.node.getNeighbors();
@@ -107,10 +112,14 @@ public class Refresh implements Runnable {
                 this.node.updatePublisherClientInfo(from);
             }
 
+            this.node.storeState(this.fileName);
+            this.node.writeInTextFile(this.fileName + "_TextVersion");
+
             //Message
             if(to.equals(this.node.getClient().getKey())){
                 List<Post> subList = this.postsAfterCausalID(this.node.getMyPosts(), causalID);
-                PostsReply reply = new PostsReply(subList.stream().collect(Collectors.toSet()), this.node.getClient(), from.getKey());
+                PostsReply reply = new PostsReply(subList.stream().collect(Collectors.toSet()), this.node.getClient(), this.node.getClient(), from.getKey());
+                ms.sendAsync(from.getAddress(),"postReply", s.encode(reply));
             }
             else {
                 request.setCausalID(ttl-1);
@@ -124,7 +133,7 @@ public class Refresh implements Runnable {
                     orderedList.addAll(subList);
 
                     if(orderedList.size() > 0){
-                        PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), from.getKey());
+                        PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), this.node.getClient(), from.getKey());
                         ms.sendAsync(from.getAddress(), "postReply", s.encode(reply));
                     }
 
@@ -142,25 +151,43 @@ public class Refresh implements Runnable {
             PostsReply reply = s.decode(m);
             Set<Post> posts = reply.getPosts();
             Client from = reply.getFrom();
+            Client sender = reply.getSender();
             String to = reply.getTo();
 
-            //Update neighbor client info
-            boolean found = false;
-            List<Client> neighbors = this.node.getNeighbors();
-            for(int i = 0; i<neighbors.size() && !found; i++){
-                if(neighbors.get(i).getKey().equals(from.getKey())){
-                    found=true;
-                    this.node.updateNeighborClientInfo(from);
-                }
-            }
-
-            //Update publisher client info
-            if(this.node.listPublishersKeys().contains(from.getKey())){
-                this.node.updatePublisherClientInfo(from);
-            }
-
-            //Message
+            //Message to me
             if(to.equals(this.node.getClient().getKey())){
+
+                //Update neighbors who replied
+                boolean found = false;
+                List<Client> neighbors = this.node.getNeighbors();
+                for(int i = 0; i<neighbors.size() && !found; i++){
+                    if(neighbors.get(i).getKey().equals(sender.getKey())){
+                        found = true;
+                        neighborResponse.put(sender.getKey(), true);
+                    }
+                }
+
+                //Update publishers who replied
+                if(pubsResponse.containsKey(sender.getKey())){
+                    pubsResponse.put(sender.getKey(), true);
+                }
+
+                //Update sender (who is my neighbor) client info
+                found = false;
+                for(int i = 0; i<neighbors.size() && !found; i++){
+                    if(neighbors.get(i).getKey().equals(sender.getKey())){
+                        found=true;
+                        this.node.updateNeighborClientInfo(sender);
+                    }
+                }
+
+                //Update sender (who is my publisher) client info
+                if(this.node.listPublishersKeys().contains(sender.getKey())){
+                    this.node.updatePublisherClientInfo(sender);
+                }
+
+                //todo ver qual o maior id na waiting list
+
                 for(Post p: posts){
                     if(p.getCausalID() == this.node.getCausalIdPubs().get(from.getKey())){
                         this.node.addPubPost(p, from.getKey());
@@ -168,13 +195,33 @@ public class Refresh implements Runnable {
                     else this.node.addPubWaitingList(p, from.getKey());
                 }
 
-                this.node.storeState(fileName);
+                //todo ver qual o maior id na waiting list
+                //todo se mudar, fazer os updates
+
+                //Update publisher/from (who is my neighbor) client info
+                found = false;
+                for(int i = 0; i<neighbors.size() && !found; i++){
+                    if(neighbors.get(i).getKey().equals(from.getKey())){
+                        found=true;
+                        this.node.updateNeighborClientInfo(from);
+                    }
+                }
+
+                //Update publisher/from (who is my publisher) client info
+                this.node.updatePublisherClientInfo(from);
+
+                this.node.storeState(this.fileName);
+                this.node.writeInTextFile(this.fileName + "_TextVersion");
             }
         }, es);
 
         //Initial communication with bootstrap
+        System.out.println("THREAD: Contacting bootstrap.");
         NodeMsg msg = new NodeMsg(this.node.getClient(), this.node.getNodeMsgID());
-        this.node.setNodeMsgID(this.node.getNodeMsgID() + 1);
+        int id = this.node.getNodeMsgID()+1;
+        this.node.setNodeMsgID(id);
+        this.node.storeState(this.fileName);
+        this.node.writeInTextFile(this.fileName + "_TextVersion");
         if (this.node.getNeighbors().size() == 0) {
             ms.sendAsync(this.bootstrapIP, "network", s.encode(msg));
         } else {
@@ -182,17 +229,20 @@ public class Refresh implements Runnable {
         }
 
         //Refresh posts
-        es.schedule(() -> {
+        /*es.schedule(() -> {
             int ttl = 5;
 
             for(Client p : this.node.listPublishersValues()){
+                //todo acho que se devia atualizar aqui a variavel pubsResponse
+                //todo OS ADDRESS DOS PUBLISHERS PODEM SER NULLS, CUIDADO!!!!!!!!!!!!!, se forem null, mandar logo para os vizinhos
+
                 if(pubsResponse.get(p.getKey())){
-                    PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(),ttl);
+                    PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
                     ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
                     pubsResponse.put(p.getKey(), false);
                 }
                 else if(mandarVizinhos(neighborResponse)){
-                        PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(),ttl);
+                        PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
                         for(Client c: this.node.getNeighbors()){
                             ms.sendAsync(c.getAddress(), "postsRequest", s.encode(request));
                             neighborResponse.put(c.getKey(), false);
@@ -201,6 +251,8 @@ public class Refresh implements Runnable {
                 else{
                     NodeMsg msgB = new NodeMsg(this.node.getClient(), this.node.getNodeMsgID());
                     this.node.setNodeMsgID(this.node.getNodeMsgID() + 1);
+                    this.node.storeState(this.fileName);
+                    this.node.writeInTextFile(this.fileName + "_TextVersion");
                     ms.sendAsync(this.bootstrapIP, "network", s.encode(msgB));
                 }
             }
@@ -214,9 +266,11 @@ public class Refresh implements Runnable {
             Collections.shuffle(network);
             network = network.subList(0, network.size() / 2);
             for (Client p : network) {
-                ms.sendAsync(p.getAddress(), "suggestionsRequest", s.encode(""));
+                if(p.getAddress()!=null){
+                    ms.sendAsync(p.getAddress(), "suggestionsRequest", s.encode(""));
+                }
             }
             es.schedule(this, 10, TimeUnit.SECONDS);
-        }, 10, TimeUnit.SECONDS);
+        }, 10, TimeUnit.SECONDS);*/
     }
 }

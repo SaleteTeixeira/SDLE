@@ -229,6 +229,8 @@ public class Node implements Serializable {
 
         ss.append("----- Node -----").append("\n\n");
 
+        ss.append("NodeMsg ID (to talk with bootstrap): ").append(this.nodeMsgID).append("\n");
+
         ss.append(this.client.toString()).append("\n");
 
         ss.append("----- My Posts -----").append("\n");
@@ -288,6 +290,7 @@ public class Node implements Serializable {
             FileInputStream fis = new FileInputStream(fileName);
             ObjectInputStream ois = new ObjectInputStream(fis);
             node = (Node) ois.readObject();
+            node.setClientAddress(Address.from(host, port));
             ois.close();
             fis.close();
         } catch (IOException | ClassNotFoundException e) {
@@ -300,6 +303,10 @@ public class Node implements Serializable {
     /**
      * Methods
      **/
+
+    synchronized void setClientAddress(Address address){
+        this.client.setAddress(address);
+    }
 
     synchronized void addPost(String p) {
         Post post = new Post(p, this.causalID);
@@ -332,7 +339,7 @@ public class Node implements Serializable {
                     found = true;
                 }
             }
-            if (!found) {
+            if (!found && !c.getKey().equals(this.client.getKey())) {
                 this.neighbors.add(c.clone());
             }
         }
@@ -410,10 +417,6 @@ public class Node implements Serializable {
         return aux;
     }
 
-    synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
-        this.suggestedPubsByPub.put(pubKey, new ArrayList<>(suggestedPubs));
-    }
-
     synchronized void addPubPost(Post p, String k){
         this.pubsPosts.get(k).add(p.clone());
         this.causalIdPubs.put(k, p.getCausalID()+1);
@@ -423,18 +426,24 @@ public class Node implements Serializable {
         this.waitingListPubsPost.get(k).add(p.clone());
     }
 
+    synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
+        this.suggestedPubsByPub.put(pubKey, new ArrayList<>(suggestedPubs));
+    }
+
     public static void main(String[] args) {
         String username = args[0];
         int localport = Integer.parseInt(args[1]);
         Address bootstrapIP = Address.from(args[2]);
-        String RSAFile = args[3];
+        //String RSAFile = args[3];
 
         //Get public key and IP
-        String host = Util.getPublicIp();
-        String RSA = Util.LoadRSAKey(RSAFile);
+        //String host = Util.getPublicIp();
+        //String RSA = Util.LoadRSAKey(RSAFile);
+        String host = "localhost";
+        String RSA = "key"+username;
 
         //Initialize new node or with previous state
-        String fileName = "nodeDB";
+        String fileName = "nodeDB_"+username;
         Node node = loadState(username, RSA, host, localport, fileName);
         node.removeOneWeekOldPosts();
         node.storeState(fileName);

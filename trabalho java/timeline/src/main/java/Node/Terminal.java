@@ -121,8 +121,13 @@ public class Terminal implements Runnable {
                         }
                     }
 
-                    for(Post p : chronologicalPosts){
-                        System.out.println(p.toString());
+                    if(chronologicalPosts.size()>0) {
+                        for (Post p : chronologicalPosts) {
+                            System.out.println(p.toString());
+                        }
+                    }
+                    else {
+                        System.out.println("Nothing on your cache to show.");
                     }
 
                     break;
@@ -142,10 +147,16 @@ public class Terminal implements Runnable {
                                 int v = scan.nextInt();
                                 String selectedPubKey = pubs.get(v-1).getKey();
                                 List<Post> pubPosts = this.node.getPublisherPosts(selectedPubKey);
-                                Collections.reverse(pubPosts);
 
-                                for(Post p : pubPosts){
-                                    System.out.println(p.toString());
+                                if(pubPosts.size()==0){
+                                    System.out.println("Nothing on your cache to show about that node.");
+                                }
+                                else{
+                                    Collections.reverse(pubPosts);
+
+                                    for(Post p : pubPosts){
+                                        System.out.println(p.toString());
+                                    }
                                 }
                             }
                             catch(IndexOutOfBoundsException e){
@@ -224,16 +235,29 @@ public class Terminal implements Runnable {
                     break;
                 case 2:
                     System.out.println("Specify the RSA key of the node you want to subscribe.");
-                    String key = scan.nextLine();
+                    if(scan.hasNextLine()){
+                        scan.nextLine();
+                        String key = scan.nextLine();
 
-                    System.out.println("Specify the username to associate temporarily to this node.");
-                    String tempUsername = scan.nextLine();
+                        System.out.println("Specify the username to associate temporarily to this node.");
+                        if(scan.hasNextLine()){
+                            String tempUsername = scan.nextLine();
 
-                    this.node.addPublisher(tempUsername, key);
-                    System.out.println("Subscription done with sucess.");
+                            if(this.node.listPublishersKeys().contains(key)){
+                                System.out.println("You are already subscribed to that node.");
+                            }
+                            else if (key.equals(this.node.getClient().getKey())) {
+                                System.out.println("You can't subscribe to yourself.");
+                            }
+                            else{
+                                this.node.addPublisher(tempUsername, key);
+                                System.out.println("Subscription done with sucess.");
 
-                    this.node.storeState(this.fileName);
-                    this.node.writeInTextFile(this.fileName +"_TextVersion");
+                                this.node.storeState(this.fileName);
+                                this.node.writeInTextFile(this.fileName +"_TextVersion");
+                            }
+                        }
+                    }
 
                     break;
                 case 3:
@@ -249,6 +273,13 @@ public class Terminal implements Runnable {
 
                             System.out.println();
                         }
+                        else {
+                            System.out.println("Publisher "+this.node.getPublishers().get(e.getKey()).getUsername()+": "+e.getKey()+ " hasn't suggested anyone yet.");
+                        }
+                    }
+
+                    if(this.node.getSuggestedPubsByPub().keySet().size()==0){
+                        System.out.println("You are not subscribed to any node.");
                     }
 
                     break;

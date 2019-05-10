@@ -6,7 +6,7 @@ import java.io.Serializable;
 public class Client implements Serializable {
     private String username;
     private String key;
-    private Address address;
+    private Common.Address address;
 
     public Client(String tempUsername, String k) {
         this.username = tempUsername;
@@ -17,7 +17,8 @@ public class Client implements Serializable {
     public Client(String u, String k, Address a) {
         this.username = u;
         this.key = k;
-        this.address = a;
+        if(a==null) this.address=null;
+        else this.address = new Common.Address(a.host(), a.port());
     }
 
     public String getUsername() {
@@ -37,11 +38,12 @@ public class Client implements Serializable {
     }
 
     public Address getAddress() {
-        return this.address;
+        if(this.address==null) return null;
+        else return this.address.get();
     }
 
     public void setAddress(Address address){
-        this.address = address;
+        this.address = new Common.Address(address.host(), address.port());
     }
 
     public String toString() {
@@ -50,7 +52,12 @@ public class Client implements Serializable {
         ss.append("----- Client -----").append("\n");
         ss.append("Username: ").append(this.username).append("\n");
         ss.append("Public key: ").append(this.key).append("\n");
-        ss.append("Address: ").append(this.address.toString()).append("\n");
+        if(this.address!=null){
+            ss.append("Address: ").append(this.address.get().toString()).append("\n");
+        }
+        else {
+            ss.append("Adress: ND").append("\n");
+        }
 
         return ss.toString();
     }
@@ -58,6 +65,6 @@ public class Client implements Serializable {
     @SuppressWarnings("MethodDoesntCallSuperMethod")
     @Override
     public Client clone() {
-        return new Client(this.username, this.key, this.address);
+        return new Client(this.username, this.key, this.getAddress());
     }
 }

@@ -9,11 +9,13 @@ import java.util.TreeSet;
 public class PostsReply {
     private Set<Post> posts;
     private Client from;
+    private Client sender;
     private String to;
 
-    public PostsReply(Set<Post> posts, Client from, String to){
+    public PostsReply(Set<Post> posts, Client from, Client sender, String to){
         this.posts = posts;
         this.from = from;
+        this.sender = sender;
         this.to = to;
     }
 
@@ -45,6 +47,14 @@ public class PostsReply {
         this.from = from.clone();
     }
 
+    public Client getSender() {
+        return this.sender.clone();
+    }
+
+    public void setSender(Client sender) {
+        this.sender = sender.clone();
+    }
+
     public String getTo() {
         return this.to;
     }
@@ -59,6 +69,7 @@ public class PostsReply {
         ss.append("----- Post Reply -----").append("\n");
         ss.append("To: ").append(this.to).append("\n");
         ss.append("From: ").append(this.from.toString()).append("\n");
+        ss.append("Sender: ").append(this.sender.toString()).append("\n");
         ss.append("Posts: \n").append(this.posts.toString()).append("\n");
 
         return ss.toString();

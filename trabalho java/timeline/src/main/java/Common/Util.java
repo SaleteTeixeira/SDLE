@@ -1,8 +1,13 @@
 package Common;
 
+import Node.Post;
+import io.atomix.utils.net.Address;
+import io.atomix.utils.serializer.Serializer;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.Inet4Address;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -13,6 +18,22 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 public class Util {
+
+    public static Serializer buildSerializer() {
+        return Serializer.builder()
+                .withTypes(NodeMsg.class)
+                .withTypes(NeighborsReply.class)
+                .withTypes(SuggestionsReply.class)
+                .withTypes(PostsReply.class)
+                .withTypes(PostsRequest.class)
+                .withTypes(Post.class)
+                .withTypes(Client.class)
+                .withTypes(Address.class)
+                .withTypes(Inet4Address.class)
+                .withTypes(Address.Type.class)
+                .build();
+    }
+
     public static String getPublicIp() {
         URL whatismyip = null;
         try {

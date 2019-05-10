@@ -50,7 +50,7 @@ public class Client implements Serializable {
         ss.append("----- Client -----").append("\n");
         ss.append("Username: ").append(this.username).append("\n");
         ss.append("Public key: ").append(this.key).append("\n");
-        ss.append("Address: ").append(this.address).append("\n");
+        ss.append("Address: ").append(this.address.toString()).append("\n");
 
         return ss.toString();
     }

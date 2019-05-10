@@ -1,18 +1,14 @@
 package Bootstrap;
 
-import Common.Client;
+import Common.*;
 
 import java.io.*;
 import java.util.*;
 
-import Common.NeighborsReply;
-import Common.NodeMsg;
 import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
 import io.atomix.utils.serializer.Serializer;
-import io.atomix.utils.serializer.SerializerBuilder;
-
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,20 +22,30 @@ public class Bootstrap {
             Map<String, Client> clients = loadState_clients(file_clients);
             Map<String, Integer> ids = loadState_ids(file_ids);
 
-            Serializer s = new SerializerBuilder().build();
+            Serializer s = Util.buildSerializer();
             ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(args[0])).build();
             ExecutorService es = Executors.newSingleThreadExecutor();
+
             ms.start().get();
 
             ms.registerHandler("network", (o, m) -> {
+                System.out.println(Arrays.toString(m));
+                System.out.println(o);
                 NodeMsg msg = s.decode(m);
+
+                System.out.println("Received: ");
+                System.out.println(msg.toString());
+
                 int id = msg.getId();
                 if (!ids.containsKey(msg.getClient().getKey())) {
+                    System.out.println("New client!");
                     ids.put(msg.getClient().getKey(), 0);
                 }
                 if (id > ids.get(msg.getClient().getKey())) {
+                    System.out.println("Updating client information.");
                     clients.put(msg.getClient().getKey(), msg.getClient());
 
+                    System.out.println("Sending him his neighbors.");
                     List<Client> network = neighbors(clients);
                     NeighborsReply send = new NeighborsReply(network);
                     ms.sendAsync(o, "network", s.encode(send));
@@ -48,6 +54,7 @@ public class Bootstrap {
 
                     storeState_clients(clients, file_clients);
                     storeState_ids(ids, file_ids);
+                    writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
                 }
             }, es);
 
@@ -56,16 +63,22 @@ public class Bootstrap {
                 int id = msg.getId();
 
                 if (!ids.containsKey(msg.getClient().getKey())) {
+                    System.out.println("New client!");
                     ids.put(msg.getClient().getKey(), 0);
                 }
 
                 if (id > ids.get(msg.getClient().getKey())) {
+                    System.out.println("Updating client information.");
                     clients.put(msg.getClient().getKey(), msg.getClient());
                     ids.put(msg.getClient().getKey(), id);
+
                     storeState_clients(clients, file_clients);
                     storeState_ids(ids, file_ids);
+                    writeInTextFile(ids, clients, "bootstrapDB_TextVersion");
                 }
             }, es);
+
+
 
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
@@ -93,6 +106,7 @@ public class Bootstrap {
             }
         } catch (IOException | ClassNotFoundException e) {
             clients = new HashMap<>();
+            System.out.println("Could not find previous state for client.");
         }
 
         return clients;
@@ -107,7 +121,7 @@ public class Bootstrap {
             out.close();
             fileOut.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Error saving clients state.");
         }
     }
 
@@ -125,6 +139,7 @@ public class Bootstrap {
                 ids = new HashMap<>();
             }
         } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Could not find previous state for ids.");
             ids = new HashMap<>();
         }
 
@@ -140,7 +155,22 @@ public class Bootstrap {
             out.close();
             fileOut.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Error saving ids state.");
+        }
+    }
+
+    private static void writeInTextFile(Map<String, Integer> ids, Map<String, Client> clients, String fileName) {
+        try {
+            PrintWriter fich = new PrintWriter(fileName);
+            for(String s : ids.keySet()){
+                fich.println("----- "+s+" -----");
+                fich.println("Last received message: "+ids.get(s));
+                fich.println(clients.get(s));
+            }
+            fich.flush();
+            fich.close();
+        } catch (IOException e) {
+            System.out.println("Error saving state in text file.");
         }
     }
 }

@@ -466,6 +466,21 @@ public class Node implements Serializable {
     synchronized void addPubPost(Post p, String k){
         this.pubsPosts.get(k).add(p.clone());
         this.causalIdPubs.put(k, p.getCausalID()+1);
+
+        List<Post> remove = new ArrayList<Post>();
+
+        for(Post tmp: this.waitingListPubsPost.get(k)){
+            if(this.causalIdPubs.get(k) == tmp.getCausalID()){
+                this.pubsPosts.get(k).add(tmp.clone());
+                this.causalIdPubs.put(k, tmp.getCausalID()+1);
+                remove.add(tmp.clone());
+            }
+            else break;
+        }
+
+        for(Post tmp: remove){
+            this.waitingListPubsPost.remove(tmp);
+        }
     }
 
     synchronized void addPubWaitingList(Post p, String k){

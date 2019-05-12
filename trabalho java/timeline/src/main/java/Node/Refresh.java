@@ -50,18 +50,6 @@ public class Refresh implements Runnable {
         ManagedMessagingService ms = NettyMessagingService.builder().withAddress(Address.from(this.host, this.localport)).build();
         ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 
-        //todo e se estas variaveis mudarem no node ????
-        Map<String, Boolean> pubsResponse = new HashMap<>();
-        for(Client c: this.node.getPublishers().values()){
-            pubsResponse.put(c.getKey(), true);
-        }
-
-        //todo e se estas variaveis mudarem no node ????
-        Map<String, Boolean> neighborResponse = new HashMap<>();
-        for(Client c: this.node.getNeighbors()){
-            neighborResponse.put(c.getKey(), true);
-        }
-
         try {
             ms.start().get();
         } catch (InterruptedException | ExecutionException e) {
@@ -96,7 +84,7 @@ public class Refresh implements Runnable {
             String to = request.getTo();
             int ttl = request.getTTL();
 
-            //todo pensar se se pode fazer estes updates do client
+            //todo pensar se se pode fazer estes updates do client          -> porque não se poderia atualizar? se ele mandou um pedido então é a info mais recente
             //Update neighbor client info
             boolean found = false;
             List<Client> neighbors = this.node.getNeighbors();
@@ -163,14 +151,12 @@ public class Refresh implements Runnable {
                 for(int i = 0; i<neighbors.size() && !found; i++){
                     if(neighbors.get(i).getKey().equals(sender.getKey())){
                         found = true;
-                        neighborResponse.put(sender.getKey(), true);
+                        this.node.updateNeighborResponse(sender.getKey(), true);
                     }
                 }
 
                 //Update publishers who replied
-                if(pubsResponse.containsKey(sender.getKey())){
-                    pubsResponse.put(sender.getKey(), true);
-                }
+                this.node.updatePubResponse(sender.getKey(), true);
 
                 //Update sender (who is my neighbor) client info
                 found = false;
@@ -186,18 +172,20 @@ public class Refresh implements Runnable {
                     this.node.updatePublisherClientInfo(sender);
                 }
 
-                //todo ver qual o maior id na waiting list
-
                 for(Post p: posts){
                     if(p.getCausalID() == this.node.getCausalIdPubs().get(from.getKey())){
                         this.node.addPubPost(p, from.getKey());
                     }
-                    else this.node.addPubWaitingList(p, from.getKey());
+                    else if(p.getCausalID() > this.node.getCausalIdPubs().get(from.getKey())) this.node.addPubWaitingList(p, from.getKey());
+
+                    //Update publisher/from (who is my publisher) client info
+                    if(this.node.getPublishers().containsKey(from.getKey()) && this.node.biggestPost(from.getKey(), p)){
+                        this.node.updatePublisherClientInfo(from);
+                    }
+
                 }
 
-                //todo ver qual o maior id na waiting list
-                //todo se mudar, fazer os updates
-
+                //todo: este update é inútil, porque vai ser igual ao de cima em que se faz update com o sender, por mim devia-se tirar
                 //Update publisher/from (who is my neighbor) client info
                 found = false;
                 for(int i = 0; i<neighbors.size() && !found; i++){
@@ -206,9 +194,6 @@ public class Refresh implements Runnable {
                         this.node.updateNeighborClientInfo(from);
                     }
                 }
-
-                //Update publisher/from (who is my publisher) client info
-                this.node.updatePublisherClientInfo(from);
 
                 this.node.storeState(this.fileName);
                 this.node.writeInTextFile(this.fileName + "_TextVersion");
@@ -229,23 +214,22 @@ public class Refresh implements Runnable {
         }
 
         //Refresh posts
-        /*es.schedule(() -> {
+        es.schedule(() -> {
             int ttl = 5;
 
             for(Client p : this.node.listPublishersValues()){
-                //todo acho que se devia atualizar aqui a variavel pubsResponse
-                //todo OS ADDRESS DOS PUBLISHERS PODEM SER NULLS, CUIDADO!!!!!!!!!!!!!, se forem null, mandar logo para os vizinhos
+                //todo acho que se devia atualizar aqui a variavel pubsResponse         -> só se atualiza se efetivamente se enviar para o publisher acho
 
-                if(pubsResponse.get(p.getKey())){
+                if(p.getAddress() != null && this.node.getPubsResponse().get(p.getKey())){
                     PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
                     ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
-                    pubsResponse.put(p.getKey(), false);
+                    this.node.updatePubResponse(p.getKey(), false);
                 }
-                else if(mandarVizinhos(neighborResponse)){
+                else if(mandarVizinhos(this.node.getNeighborsResponse())){
                         PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
                         for(Client c: this.node.getNeighbors()){
                             ms.sendAsync(c.getAddress(), "postsRequest", s.encode(request));
-                            neighborResponse.put(c.getKey(), false);
+                            this.node.updateNeighborResponse(c.getKey(), false);
                         }
                 }
                 else{
@@ -271,6 +255,6 @@ public class Refresh implements Runnable {
                 }
             }
             es.schedule(this, 10, TimeUnit.SECONDS);
-        }, 10, TimeUnit.SECONDS);*/
+        }, 10, TimeUnit.SECONDS);
     }
 }

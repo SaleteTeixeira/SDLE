@@ -46,6 +46,7 @@ public class Node implements Serializable {
         this.suggestedPubsByPub = new HashMap<>();
         this.neighborsResponse = new HashMap<>();
         this.neighborsResponse = new HashMap<>();
+        this.pubsResponse = new HashMap<>();
     }
 
     /**
@@ -226,37 +227,37 @@ public class Node implements Serializable {
         this.suggestedPubsByPub = result;
     }
 
-    synchronized Map<String, Boolean> getNeighborsResponse(){
+    synchronized Map<String, Boolean> getNeighborsResponse() {
         Map<String, Boolean> result = new HashMap<>();
 
-        for(Map.Entry<String, Boolean> entry: this.neighborsResponse.entrySet()){
+        for (Map.Entry<String, Boolean> entry : this.neighborsResponse.entrySet()) {
             result.put(entry.getKey(), entry.getValue());
         }
 
         return result;
     }
 
-    synchronized Map<String, Boolean> getPubsResponse(){
+    synchronized Map<String, Boolean> getPubsResponse() {
         Map<String, Boolean> result = new HashMap<>();
 
-        for(Map.Entry<String, Boolean> entry: this.pubsResponse.entrySet()){
+        for (Map.Entry<String, Boolean> entry : this.pubsResponse.entrySet()) {
             result.put(entry.getKey(), entry.getValue());
         }
 
         return result;
     }
 
-    synchronized void updateNeighborResponse(String key, boolean bool){
+    synchronized void updateNeighborResponse(String key, boolean bool) {
         this.neighborsResponse.put(key, bool);
     }
 
-    synchronized void updatePubResponse(String key, boolean bool){
-        if(this.publishers.containsKey(key)) this.pubsResponse.put(key, bool);
+    synchronized void updatePubResponse(String key, boolean bool) {
+        if (this.publishers.containsKey(key)) this.pubsResponse.put(key, bool);
     }
 
-    synchronized boolean biggestPost(String key, Post p){
-        for(Post tmp: this.waitingListPubsPost.get(key)){
-            if(tmp.getCausalID() > p.getCausalID()) return false;
+    synchronized boolean biggestPost(String key, Post p) {
+        for (Post tmp : this.waitingListPubsPost.get(key)) {
+            if (tmp.getCausalID() > p.getCausalID()) return false;
         }
 
         return true;
@@ -346,7 +347,7 @@ public class Node implements Serializable {
      * Methods
      **/
 
-    synchronized void setClientAddress(Address address){
+    synchronized void setClientAddress(Address address) {
         this.client.setAddress(address);
     }
 
@@ -389,8 +390,8 @@ public class Node implements Serializable {
     }
 
     synchronized void updateNeighborClientInfo(Client client) {
-        for(Client c : this.neighbors){
-            if(c.getKey().equals(client.getKey())){
+        for (Client c : this.neighbors) {
+            if (c.getKey().equals(client.getKey())) {
                 c.setUsername(client.getUsername());
                 c.setAddress(client.getAddress());
             }
@@ -463,37 +464,36 @@ public class Node implements Serializable {
         return aux;
     }
 
-    synchronized void addPubPost(Post p, String k){
+    synchronized void addPubPost(Post p, String k) {
         this.pubsPosts.get(k).add(p.clone());
-        this.causalIdPubs.put(k, p.getCausalID()+1);
+        this.causalIdPubs.put(k, p.getCausalID() + 1);
 
         List<Post> remove = new ArrayList<Post>();
 
-        for(Post tmp: this.waitingListPubsPost.get(k)){
-            if(this.causalIdPubs.get(k) == tmp.getCausalID()){
+        for (Post tmp : this.waitingListPubsPost.get(k)) {
+            if (this.causalIdPubs.get(k) == tmp.getCausalID()) {
                 this.pubsPosts.get(k).add(tmp.clone());
-                this.causalIdPubs.put(k, tmp.getCausalID()+1);
+                this.causalIdPubs.put(k, tmp.getCausalID() + 1);
                 remove.add(tmp.clone());
-            }
-            else break;
+            } else break;
         }
 
-        for(Post tmp: remove){
+        for (Post tmp : remove) {
             this.waitingListPubsPost.remove(tmp);
         }
     }
 
-    synchronized void addPubWaitingList(Post p, String k){
+    synchronized void addPubWaitingList(Post p, String k) {
         boolean add = true;
 
-        for(Post tmp: this.waitingListPubsPost.get(k)){
-            if(tmp.getCausalID() == p.getCausalID()){
+        for (Post tmp : this.waitingListPubsPost.get(k)) {
+            if (tmp.getCausalID() == p.getCausalID()) {
                 add = false;
                 break;
             }
         }
 
-        if(add) this.waitingListPubsPost.get(k).add(p.clone());
+        if (add) this.waitingListPubsPost.get(k).add(p.clone());
     }
 
     synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
@@ -510,10 +510,10 @@ public class Node implements Serializable {
         //String host = Util.getPublicIp();
         //String RSA = Util.LoadRSAKey(RSAFile);
         String host = "localhost";
-        String RSA = "key"+username;
+        String RSA = "key" + username;
 
         //Initialize new node or with previous state
-        String fileName = "nodeDB_"+username;
+        String fileName = "nodeDB_" + username;
         Node node = loadState(username, RSA, host, localport, fileName);
         node.removeOneWeekOldPosts();
         node.storeState(fileName);

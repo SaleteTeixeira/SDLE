@@ -2,3 +2,5 @@
 *venv
 *.iml
 trabalho\ java/timeline/target
+bootstrapDB*
+nodeDB*

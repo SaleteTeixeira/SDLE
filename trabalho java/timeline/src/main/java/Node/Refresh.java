@@ -112,6 +112,7 @@ public class Refresh implements Runnable {
                 PostsReply reply = new PostsReply(new HashSet<>(subList), this.node.getClient(), this.node.getClient(), from.getKey());
                 System.out.println(from.getAddress().toString());
                 ms.sendAsync(from.getAddress(), "postsReply", s.encode(reply));
+                System.out.println("Sent message with my posts");
             } else {
                 request.setTTL(ttl - 1);
 
@@ -186,18 +187,17 @@ public class Refresh implements Runnable {
                     //Update publisher/from (who is my publisher) client info
                     if (this.node.getPublishers().containsKey(from.getKey()) && this.node.biggestPost(from.getKey(), p)) {
                         this.node.updatePublisherClientInfo(from);
+
+                        //Update publisher/from (who is my neighbor) client info
+                        found = false;
+                        for (int i = 0; i < neighbors.size() && !found; i++) {
+                            if (neighbors.get(i).getKey().equals(from.getKey())) {
+                                found = true;
+                                this.node.updateNeighborClientInfo(from);
+                            }
+                        }
                     }
 
-                }
-
-                //todo: este update é inútil, porque vai ser igual ao de cima em que se faz update com o sender, por mim devia-se tirar
-                //Update publisher/from (who is my neighbor) client info
-                found = false;
-                for (int i = 0; i < neighbors.size() && !found; i++) {
-                    if (neighbors.get(i).getKey().equals(from.getKey())) {
-                        found = true;
-                        this.node.updateNeighborClientInfo(from);
-                    }
                 }
 
                 this.node.storeState(this.fileName);

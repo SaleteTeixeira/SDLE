@@ -4,20 +4,27 @@ import java.io.Serializable;
 import java.util.Date;
 
 public class Post implements Serializable  {
+    private String publisher;
     private String post;
     private Integer causalID;
     private Date utc;
 
-    public Post(String post, Integer causalID){
+    public Post(String publisher, String post, Integer causalID){
+        this.publisher = publisher;
         this.post = post;
         this.causalID = causalID;
         this.utc = new Date(); //current date time
     }
 
-    private Post(String post, Integer causalID, Date utc){
+    private Post(String publisher, String post, Integer causalID, Date utc){
+        this.publisher = publisher;
         this.post = post;
         this.causalID = causalID;
         this.utc = utc;
+    }
+
+    public String getPublisher() {
+        return this.publisher;
     }
 
     public String getPost() {
@@ -36,6 +43,7 @@ public class Post implements Serializable  {
         StringBuilder ss = new StringBuilder();
 
         ss.append("----- Post -----").append("\n");
+        ss.append("Publisher: ").append(this.publisher).append("\n");
         ss.append("Post: ").append(this.post).append("\n");
         ss.append("Causal ID: ").append(this.causalID).append("\n");
         ss.append("UTC: ").append(this.utc).append("\n");
@@ -45,7 +53,7 @@ public class Post implements Serializable  {
 
     @Override
     public Post clone(){
-        return new Post(this.post, this.causalID, this.utc);
+        return new Post(this.publisher, this.post, this.causalID, this.utc);
     }
 
     public boolean oneWeekOld(){

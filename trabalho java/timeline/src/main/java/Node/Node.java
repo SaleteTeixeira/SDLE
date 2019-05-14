@@ -23,6 +23,7 @@ public class Node implements Serializable {
     private Map<String, List<Post>> pubsPosts; //added by causal order
     private Map<String, Integer> causalIdPubs;
     private Map<String, List<Post>> waitingListPubsPost;
+
     private Map<String, Boolean> neighborsResponse;
     private Map<String, Boolean> pubsResponse;
 
@@ -246,22 +247,6 @@ public class Node implements Serializable {
         return result;
     }
 
-    synchronized void updateNeighborResponse(String key, boolean bool) {
-        this.neighborsResponse.put(key, bool);
-    }
-
-    synchronized void updatePubResponse(String key, boolean bool) {
-        if (this.publishers.containsKey(key)) this.pubsResponse.put(key, bool);
-    }
-
-    synchronized boolean biggestPost(String key, Post p) {
-        for (Post tmp : this.waitingListPubsPost.get(key)) {
-            if (tmp.getCausalID() > p.getCausalID()) return false;
-        }
-
-        return true;
-    }
-
     /**
      * toString
      **/
@@ -271,26 +256,29 @@ public class Node implements Serializable {
 
         ss.append("----- Node -----").append("\n\n");
 
-        ss.append("NodeMsg ID (to talk with bootstrap): ").append(this.nodeMsgID).append("\n");
+        ss.append("NodeMsg ID (to talk with bootstrap): ").append(this.nodeMsgID).append("\n\n");
 
         ss.append(this.client.toString()).append("\n");
 
         ss.append("----- My Posts -----").append("\n");
-        ss.append(this.myPosts.toString()).append("\n\n");
         ss.append("Next causal ID: ").append(this.causalID).append("\n");
+        ss.append(this.myPosts.toString()).append("\n\n");
 
-        ss.append("----- Neighbors -----").append("\n");
+        ss.append("----- My Neighbors -----").append("\n");
         ss.append(this.neighbors.toString()).append("\n\n");
 
-        ss.append("----- Pubs -----").append("\n\n");
+        ss.append("----- My Publishers -----").append("\n");
+        int i = 0;
         for (String s : this.publishers.keySet()) {
+            i++;
+            ss.append("Publisher nr ").append(i).append(".\n");
             ss.append(this.publishers.get(s).toString()).append("\n");
-            ss.append("----- Posts -----").append("\n");
+            ss.append("----- Cached Posts -----").append("\n");
             ss.append(this.pubsPosts.get(s).toString()).append("\n\n");
             ss.append("----- Waiting Posts -----").append("\n");
             ss.append("Next causal ID: ").append(this.causalIdPubs.get(s)).append("\n");
             ss.append(this.waitingListPubsPost.get(s).toString()).append("\n\n");
-            ss.append("----- Suggested Pubs -----").append("\n");
+            ss.append("----- Suggested Publishers -----").append("\n");
             ss.append(this.suggestedPubsByPub.get(s).toString()).append("\n\n");
         }
 
@@ -351,7 +339,7 @@ public class Node implements Serializable {
     }
 
     synchronized void addPost(String p) {
-        Post post = new Post(p, this.causalID);
+        Post post = new Post(this.client.getUsername(), p, this.causalID);
         this.myPosts.add(post);
         this.causalID++;
     }
@@ -442,7 +430,9 @@ public class Node implements Serializable {
     }
 
     synchronized void updatePublisherClientInfo(Client client) {
-        this.publishers.put(client.getKey(), client.clone());
+        if(this.publishers.containsKey(client.getKey())){
+            this.publishers.put(client.getKey(), client.clone());
+        }
     }
 
     synchronized void removePublisher(String key) {
@@ -494,6 +484,22 @@ public class Node implements Serializable {
         }
 
         if (add) this.waitingListPubsPost.get(k).add(p.clone());
+    }
+
+    synchronized void updateNeighborResponse(String key, boolean bool) {
+        this.neighborsResponse.put(key, bool);
+    }
+
+    synchronized void updatePubResponse(String key, boolean bool) {
+        if (this.publishers.containsKey(key)) this.pubsResponse.put(key, bool);
+    }
+
+    synchronized boolean biggestPost(String key, Post p) {
+        for (Post tmp : this.waitingListPubsPost.get(key)) {
+            if (tmp.getCausalID() > p.getCausalID()) return false;
+        }
+
+        return true;
     }
 
     synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {

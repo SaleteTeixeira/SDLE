@@ -5,13 +5,9 @@ import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
 import io.atomix.utils.serializer.Serializer;
-import io.atomix.utils.serializer.SerializerBuilder;
-
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
-//todo os address podem ser null
 public class Refresh implements Runnable {
 
     private final Node node;
@@ -59,8 +55,14 @@ public class Refresh implements Runnable {
 
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
+
             this.node.addNeighbors(nr.getNeighbors());
             this.node.setNeighbors(this.node.getNeighbors()); //refresh neighborsResponse to true
+
+            for(Client c : this.node.getNeighbors()){
+                this.node.updatePublisherClientInfo(c.clone());
+            }
+
             System.out.println("I received new neighbors!\n" + this.node.getNeighbors());
             this.node.storeState(this.fileName);
             this.node.writeInTextFile(this.fileName + "_TextVersion");

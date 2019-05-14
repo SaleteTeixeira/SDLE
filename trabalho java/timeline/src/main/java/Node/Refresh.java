@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+//todo os address podem ser null
 public class Refresh implements Runnable {
 
     private final Node node;
@@ -59,7 +60,7 @@ public class Refresh implements Runnable {
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
             this.node.addNeighbors(nr.getNeighbors());
-
+            this.node.setNeighbors(this.node.getNeighbors()); //refresh neighborsResponse to true
             System.out.println("I received new neighbors!\n" + this.node.getNeighbors());
             this.node.storeState(this.fileName);
             this.node.writeInTextFile(this.fileName + "_TextVersion");
@@ -78,14 +79,13 @@ public class Refresh implements Runnable {
         }, es);
 
         ms.registerHandler("postsRequest", (o, m) -> {
-            System.out.println("Received request for posts");
+            System.out.println("Received request for posts.");
             PostsRequest request = s.decode(m);
             int causalID = request.getCausalID();
             Client from = request.getFrom();
             String to = request.getTo();
             int ttl = request.getTTL();
 
-            //todo pensar se se pode fazer estes updates do client          -> porque não se poderia atualizar? se ele mandou um pedido então é a info mais recente
             //Update neighbor client info
             boolean found = false;
             List<Client> neighbors = this.node.getNeighbors();
@@ -93,12 +93,14 @@ public class Refresh implements Runnable {
                 if (neighbors.get(i).getKey().equals(from.getKey())) {
                     found = true;
                     this.node.updateNeighborClientInfo(from);
+                    this.node.updateNeighborResponse(from.getKey(), true);
                 }
             }
 
             //Update publisher client info
             if (this.node.listPublishersKeys().contains(from.getKey())) {
                 this.node.updatePublisherClientInfo(from);
+                this.node.updatePubResponse(from.getKey(), true);
             }
 
             this.node.storeState(this.fileName);
@@ -110,20 +112,23 @@ public class Refresh implements Runnable {
                 List<Post> subList = this.postsAfterCausalID(this.node.getMyPosts(), causalID);
                 System.out.println(new HashSet<>(subList));
                 PostsReply reply = new PostsReply(new HashSet<>(subList), this.node.getClient(), this.node.getClient(), from.getKey());
-                System.out.println(from.getAddress().toString());
+                System.out.println("Replying to: "+from.getAddress().toString());
                 ms.sendAsync(from.getAddress(), "postsReply", s.encode(reply));
-                System.out.println("Sent message with my posts");
+                System.out.println("Sent message with my posts.");
+
             } else {
                 request.setTTL(ttl - 1);
 
                 if (this.node.listPublishersKeys().contains(to)) {
-                    System.out.println("Request for content from a user i subscribe to, sending cached content"); // todo é isto certo?
+                    System.out.println("Request for content from a user I subscribe to, sending cached content.");
                     List<Post> waitingList = this.postsAfterCausalID(this.node.getWaitingListPubsPost().get(to), causalID);
                     List<Post> subList = this.postsAfterCausalID(this.node.getPublisherPosts(to), causalID);
                     subList.addAll(waitingList);
 
                     Set<Post> orderedList = new TreeSet<>(new OrderedPostsByID());
                     orderedList.addAll(subList);
+
+                    System.out.println("SENDING: "+orderedList.toString());
 
                     if (orderedList.size() > 0) {
                         PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), this.node.getClient(), from.getKey());
@@ -133,7 +138,7 @@ public class Refresh implements Runnable {
                     ms.sendAsync(this.node.getPublishers().get(to).getAddress(), "postsRequest", s.encode(request));
                 } else if (request.getTTL() > 0) {
                     for (Client neighbor : this.node.getNeighbors()) {
-                        System.out.println("Request for content for unknown user, redirecting to neighbors"); // todo é isto certo?
+                        System.out.println("Request for content for unknown user, redirecting to neighbors.");
                         ms.sendAsync(neighbor.getAddress(), "postsRequest", s.encode(request));
                     }
                 }
@@ -141,7 +146,7 @@ public class Refresh implements Runnable {
         }, es);
 
         ms.registerHandler("postsReply", (o, m) -> {
-            System.out.println("Received posts after request");
+            System.out.println("Received posts after request.");
             PostsReply reply = s.decode(m);
             Set<Post> posts = reply.getPosts();
             Client from = reply.getFrom();
@@ -220,32 +225,37 @@ public class Refresh implements Runnable {
 
         //Refresh posts
         es.scheduleWithFixedDelay(() -> {
-            //System.out.println("Scheduled task |  Posts");
+            System.out.println("Scheduled task |  Posts");
             int ttl = 5;
 
             if (this.node.getNeighbors().size() == 0) {
-                System.out.println("No neighbors, requesting to bootstrap");
+                System.out.println("No neighbors, requesting to bootstrap.");
                 requestNeighbors(s, ms);
             } else {
 
                 for (Client p : this.node.listPublishersValues()) {
-                    System.out.println(p.getUsername());
-                    //todo acho que se devia atualizar aqui a variavel pubsResponse         -> só se atualiza se efetivamente se enviar para o publisher acho
-
                     if (p.getAddress() != null && this.node.getPubsResponse().get(p.getKey())) {
-                        System.out.println("Sending request for posts");
+                        System.out.println("Sending request for posts.");
                         PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
                         ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
                         this.node.updatePubResponse(p.getKey(), false);
+
                     } else if (mandarVizinhos(this.node.getNeighborsResponse())) {
-                        System.out.println("Client did not responde last request for posts");
                         PostsRequest request = new PostsRequest(this.node.getCausalIdPubs().get(p.getKey()), this.node.getClient(), p.getKey(), ttl);
+
+                        if (p.getAddress() != null) {
+                            System.out.println("Sending request for posts.");
+                            ms.sendAsync(p.getAddress(), "postsRequest", s.encode(request));
+                        }
+
+                        System.out.println("Client did not reply last request for posts.");
                         for (Client c : this.node.getNeighbors()) {
                             ms.sendAsync(c.getAddress(), "postsRequest", s.encode(request));
                             this.node.updateNeighborResponse(c.getKey(), false);
                         }
+
                     } else {
-                        System.out.println("Requesting neighbors");
+                        System.out.println("Requesting neighbors.");
                         requestNeighbors(s, ms);
                     }
                 }
@@ -254,17 +264,22 @@ public class Refresh implements Runnable {
 
 
         //Refresh suggestions
-        /*es.scheduleWithFixedDelay(() -> {
-            //System.out.println("Scheduled task |  Suggestions");
+        es.scheduleWithFixedDelay(() -> {
+            System.out.println("Scheduled task |  Suggestions");
             List<Client> network = this.node.listPublishersValues();
             Collections.shuffle(network);
-            network = network.subList(0, network.size() / 2);
+
+            int total;
+            if(network.size()==1) total =1;
+            else total = network.size() / 2;
+            network = network.subList(0, total);
+
             for (Client p : network) {
                 if (p.getAddress() != null) {
                     ms.sendAsync(p.getAddress(), "suggestionsRequest", s.encode(""));
                 }
             }
-        }, 10, 10, TimeUnit.SECONDS);*/
+        }, 10, 10, TimeUnit.SECONDS);
     }
 
     private void requestNeighbors(Serializer s, ManagedMessagingService ms) {

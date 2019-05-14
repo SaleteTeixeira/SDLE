@@ -83,6 +83,7 @@ public class Bootstrap {
     private static List<Client> neighbors(Map<String, Client> clients) {
         List<Client> network = new ArrayList<>(clients.values());
         Collections.shuffle(network);
+
         if(network.size()<=5){
             return new ArrayList<>(network.subList(0, network.size()));
         }

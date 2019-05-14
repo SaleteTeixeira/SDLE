@@ -1,5 +1,6 @@
 package Common;
 
+import Node.OrderedPostsByID;
 import Node.Post;
 import io.atomix.utils.net.Address;
 import io.atomix.utils.serializer.Serializer;
@@ -7,6 +8,7 @@ import io.atomix.utils.serializer.Serializer;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.DatagramPacket;
 import java.net.Inet4Address;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -17,6 +19,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.TreeSet;
 
 public class Util {
 
@@ -34,6 +38,9 @@ public class Util {
                 .withTypes(Address.class)
                 .withTypes(Inet4Address.class)
                 .withTypes(Address.Type.class)
+                .withTypes(Date.class)
+                .withTypes(TreeSet.class)
+                .withTypes(OrderedPostsByID.class)
                 .build();
     }
 

@@ -7,7 +7,6 @@ import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-//todo (geral): melhorar controlo da concorrencia (passar synchronized para locks)
 public class Node implements Serializable {
     /**
      * Class Attributes
@@ -380,6 +379,7 @@ public class Node implements Serializable {
             for (Client localC : this.neighbors) {
                 if (localC.getKey().equals(c.getKey())) {
                     found = true;
+                    this.updateNeighborClientInfo(c);
                 }
             }
             if (!found && !c.getKey().equals(this.client.getKey())) {

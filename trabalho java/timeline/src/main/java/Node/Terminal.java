@@ -109,7 +109,7 @@ public class Terminal implements Runnable {
             } else {
                 op = -1;
             }
-            System.out.println("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOP " + op);
+
             switch (op) {
                 case 1:
                     Map<String, List<Post>> pubsPosts = this.node.getPubsPosts();

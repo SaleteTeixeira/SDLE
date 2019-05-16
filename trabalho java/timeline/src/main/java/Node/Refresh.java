@@ -5,6 +5,7 @@ import io.atomix.cluster.messaging.ManagedMessagingService;
 import io.atomix.cluster.messaging.impl.NettyMessagingService;
 import io.atomix.utils.net.Address;
 import io.atomix.utils.serializer.Serializer;
+
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -53,14 +54,25 @@ public class Refresh implements Runnable {
             e.printStackTrace();
         }
 
+        ms.registerHandler("hello", (o, m) -> {
+            NodeMsg msg = s.decode(m);
+            Client c = msg.getClient();
+            List<Client> t = new ArrayList<>();
+            t.add(c);
+            this.node.addNeighbors(t);
+            System.out.println("Received hello poke\n" + this.node.getNeighbors().toString());
+        }, es);
+
         ms.registerHandler("network", (o, m) -> {
             NeighborsReply nr = s.decode(m);
 
             this.node.addNeighbors(nr.getNeighbors());
             this.node.setNeighbors(this.node.getNeighbors()); //refresh neighborsResponse to true
 
-            for(Client c : this.node.getNeighbors()){
+            NodeMsg msg = new NodeMsg(this.node.getClient(), 0);
+            for (Client c : this.node.getNeighbors()) {
                 this.node.updatePublisherClientInfo(c.clone());
+                ms.sendAsync(c.getAddress(), "hello", s.encode(msg));
             }
 
             System.out.println("I received new neighbors!\n" + this.node.getNeighbors());
@@ -114,7 +126,7 @@ public class Refresh implements Runnable {
                 List<Post> subList = this.postsAfterCausalID(this.node.getMyPosts(), causalID);
                 System.out.println(new HashSet<>(subList));
                 PostsReply reply = new PostsReply(new HashSet<>(subList), this.node.getClient(), this.node.getClient(), from.getKey());
-                System.out.println("Replying to: "+from.getAddress().toString());
+                System.out.println("Replying to: " + from.getAddress().toString());
                 ms.sendAsync(from.getAddress(), "postsReply", s.encode(reply));
                 System.out.println("Sent message with my posts.");
 
@@ -130,7 +142,7 @@ public class Refresh implements Runnable {
                     Set<Post> orderedList = new TreeSet<>(new OrderedPostsByID());
                     orderedList.addAll(subList);
 
-                    System.out.println("SENDING: "+orderedList.toString());
+                    System.out.println("SENDING: " + orderedList.toString());
 
                     if (orderedList.size() > 0) {
                         PostsReply reply = new PostsReply(orderedList, this.node.getPublishers().get(to), this.node.getClient(), from.getKey());
@@ -272,7 +284,7 @@ public class Refresh implements Runnable {
             Collections.shuffle(network);
 
             int total;
-            if(network.size()==1) total =1;
+            if (network.size() == 1) total = 1;
             else total = network.size() / 2;
             network = network.subList(0, total);
 

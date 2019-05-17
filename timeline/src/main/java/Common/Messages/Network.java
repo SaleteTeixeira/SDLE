@@ -1,4 +1,6 @@
-package Common;
+package Common.Messages;
+
+import Common.Client;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -279,7 +279,7 @@ public class Refresh implements Runnable {
                     }
                 }
             }
-        }, 5, 5, TimeUnit.SECONDS);
+        }, 10, 10, TimeUnit.SECONDS);
 
         //Refresh suggestions
         es.scheduleWithFixedDelay(() -> {

@@ -72,13 +72,15 @@ public class Terminal implements Runnable {
     private void post() {
         Scanner scan = new Scanner(System.in);
         System.out.println("Write in one line what you want to post.");
-        String post = scan.nextLine();
+        if (scan.hasNextLine()) {
+            String post = scan.nextLine();
 
-        this.node.addPost(post);
-        System.out.println("Post published with success.");
+            this.node.addPost(post);
+            System.out.println("Post published with success.");
 
-        this.node.storeState(this.fileName);
-        this.node.writeInTextFile(this.fileName + "_TextVersion");
+            this.node.storeState(this.fileName);
+            this.node.writeInTextFile(this.fileName + "_TextVersion");
+        }
     }
 
     //Menu option 2

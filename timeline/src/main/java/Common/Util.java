@@ -28,6 +28,7 @@ public class Util {
         return Serializer.builder()
                 .withTypes(NodeMsg.class)
                 .withTypes(NeighborsReply.class)
+                .withTypes(Network.class)
                 .withTypes(ArrayList.class)
                 .withTypes(SuggestionsReply.class)
                 .withTypes(PostsReply.class)

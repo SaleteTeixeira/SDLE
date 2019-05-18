@@ -444,7 +444,7 @@ public class Node implements Serializable {
                 }
             }
 
-            this.publishers.remove(i);
+            this.publishers.remove(i-1);
             this.pubsPosts.remove(key);
             this.causalIdPubs.remove(key);
             this.waitingListPubsPost.remove(key);

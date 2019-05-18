@@ -10,7 +10,6 @@ import io.atomix.utils.serializer.Serializer;
 import java.util.*;
 import java.util.concurrent.*;
 
-//todo (geral): implementar grupo para as msg estarem por ordem e não haver duvidas que realmente é o endereço mais recente??? Ou simplemente tirar os updatesNetwork nos postsRequest/Reply
 public class Refresh implements Runnable {
 
     private final Node node;
@@ -132,9 +131,6 @@ public class Refresh implements Runnable {
             this.node.updateNeighborResponse(from.getKey(), true);
             this.node.updatePubResponse(from.getKey(), true);
 
-            //Update from client info
-            this.node.updateNetwork(from.clone()); //todo (geral): pode sobrepor o HELLO/network qd não há ordem nas mensagens
-
             this.node.storeState(this.fileName);
             this.node.writeInTextFile(this.fileName + "_TextVersion");
 
@@ -196,9 +192,6 @@ public class Refresh implements Runnable {
             if (to.equals(this.node.getClient().getKey())) {
 
                 //Update possible neighbor/publisher who replied
-                //todo (geral): meti todos a true porque não é obrigatorio ser o vizinho a responder, basta apenas se receber uma resposta de alguém para ser true (pode ser um vizinho de um vizinho)
-                //basicamente isto estava a ir ao bootstrap mm tendo um vizinho lhe respondido por um terceiro
-                //this.node.updateNeighborResponse(sender.getKey(), true); (antigo, apagar se concordarem)
                 Map<String, Boolean> neighborsResponse = this.node.getNeighborsResponse();
                 for(String key : neighborsResponse.keySet()){
                     this.node.updateNeighborResponse(key, true);
@@ -206,15 +199,7 @@ public class Refresh implements Runnable {
 
                 this.node.updatePubResponse(sender.getKey(), true);
 
-                //Update sender client info
-                this.node.updateNetwork(sender.clone()); //todo (geral): pode sobrepor o HELLO/network qd não há ordem nas mensagens
-
                 for (Post p : posts) {
-                    //Update from (who is my publisher) client info, if it is the most recent post/address
-                    //if (this.node.biggestPost(from.getKey(), p)) { //todo (geral): ainda faz sentido ver se é o que tem o maior post? acho que não
-                        this.node.updateNetwork(from.clone()); //todo (geral) pode sobrepor o HELLO/network qd não há ordem nas mensagens
-                    //}
-
                     this.node.addPubPost(p, from.getKey());
                 }
 

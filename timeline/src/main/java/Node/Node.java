@@ -516,14 +516,6 @@ public class Node implements Serializable {
         }
     }
 
-    synchronized boolean biggestPost(String key, Post p) {
-        for (Post tmp : this.waitingListPubsPost.get(key)) {
-            if (tmp.getCausalID() > p.getCausalID()) return false;
-        }
-
-        return true;
-    }
-
     //add and update
     synchronized void updateSuggestedPubsByPub(String pubKey, List<String> suggestedPubs) {
         this.suggestedPubsByPub.put(pubKey, new ArrayList<>(suggestedPubs));

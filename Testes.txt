@@ -1,0 +1,55 @@
+- waitingList ???
+
+Testar: (ver sempre as mudanças no DB_TextVersion)
+- Bootstrap liga
+
+- A liga (ver que n recebe vizinhos e recebe network)
+- Bootstrap tem A em clients com id=1
+
+- A publica
+- A vê perfil
+- A tenta subscrever a B (keyuserB-22221)
+
+- B liga (recebe V e N)
+- Bootstrap tem B em clients com id=1
+
+- A recebe "Hello" e atualiza V e N
+- Bootstrap tem A em clients com id=2 ou mais
+
+- A subscreve a B
+
+- B subscreve a A pela chave (keyuserA-22220)
+- B vê timeline global e de A
+- B vê sugestoes de A
+
+- A post
+- B vê timeline global e de A
+
+- B unsubscribe A
+- B vê sugestoes/timeline de A
+- B subscrive a vizinho A
+
+- A post
+- A desligar
+
+- ligar C (vizinhos e network B e A)
+- Bootstrap tem C em clients com id=1
+
+- B recebe Hello de C e atualiza network
+
+- C subscreve a A (posts vindos do B)
+- ver timeline global
+- post
+- desliga
+
+- B subscreve a C (keyuserC-22223)
+
+- C entra com estado anterior e MUDA DE ENDEREÇO
+- Bootstrap tem C em clients UPDATED com id=2
+
+- B recebe Hello do C e atualiza network para o novo endereço
+- B recebe post do C 
+- B vê sugestões do C
+
+- bootstrap desliga
+- bootstrap liga com o estado anterior

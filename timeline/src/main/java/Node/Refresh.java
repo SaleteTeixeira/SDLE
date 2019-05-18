@@ -10,7 +10,7 @@ import io.atomix.utils.serializer.Serializer;
 import java.util.*;
 import java.util.concurrent.*;
 
-//todo (geral): implementar grupo para as msg estarem por ordem e não haver duvidas que realmente é o endereço mais recente???
+//todo (geral): implementar grupo para as msg estarem por ordem e não haver duvidas que realmente é o endereço mais recente??? Ou simplemente tirar os updatesNetwork nos postsRequest/Reply
 public class Refresh implements Runnable {
 
     private final Node node;
@@ -88,7 +88,8 @@ public class Refresh implements Runnable {
 
             System.out.println("Letting others know who I am.");
             for(Client c : this.node.getNetwork().values()){
-               ms.sendAsync(c.getAddress(), "hello", s.encode(this.node.getClient().clone()));
+                if(!c.getKey().equals(this.node.getClient().getKey()))
+                    ms.sendAsync(c.getAddress(), "hello", s.encode(this.node.getClient().clone()));
             }
         }, es);
 
@@ -195,7 +196,14 @@ public class Refresh implements Runnable {
             if (to.equals(this.node.getClient().getKey())) {
 
                 //Update possible neighbor/publisher who replied
-                this.node.updateNeighborResponse(sender.getKey(), true);
+                //todo (geral): meti todos a true porque não é obrigatorio ser o vizinho a responder, basta apenas se receber uma resposta de alguém para ser true (pode ser um vizinho de um vizinho)
+                //basicamente isto estava a ir ao bootstrap mm tendo um vizinho lhe respondido por um terceiro
+                //this.node.updateNeighborResponse(sender.getKey(), true); (antigo, apagar se concordarem)
+                Map<String, Boolean> neighborsResponse = this.node.getNeighborsResponse();
+                for(String key : neighborsResponse.keySet()){
+                    this.node.updateNeighborResponse(key, true);
+                }
+
                 this.node.updatePubResponse(sender.getKey(), true);
 
                 //Update sender client info
@@ -289,7 +297,7 @@ public class Refresh implements Runnable {
                     ms.sendAsync(p.getAddress(), "suggestionsRequest", s.encode(""));
                 }
             }
-        }, 10, 10, TimeUnit.SECONDS);
+        }, 20, 20, TimeUnit.SECONDS);
     }
 
     private void requestNeighbors(Serializer s, ManagedMessagingService ms) {
